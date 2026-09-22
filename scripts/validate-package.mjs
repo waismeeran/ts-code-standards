@@ -50,6 +50,7 @@ try {
   assert.ok(archiveListing.includes("package/docs/contributing/CONTRIBUTING.md"));
   assert.ok(archiveListing.includes("package/LICENSE"));
   assert.ok(archiveListing.includes("package/docs/adr/0001-flat-config-and-composition.md"));
+  assert.ok(archiveListing.includes("package/docs/presets/javascript.md"));
   assert.ok(!archiveListing.includes("package/AGENTS.md"));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/tests/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/src/")));
@@ -82,7 +83,13 @@ try {
     "",
   ].join("\n"));
 
-  await writeFile(join(consumerDirectory, "fixture.js"), "const answer = 42;\n");
+  await writeFile(join(consumerDirectory, "fixture.js"), "export default 42;\n");
+  await writeFile(join(consumerDirectory, "invalid.js"), [
+    "let answer = 42;",
+    "function read() { return answer; }",
+    "read();",
+    "",
+  ].join("\n"));
 
   const installArgs = useNpm
     ? ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"]
@@ -100,6 +107,16 @@ try {
   assert.equal(importCheck.status, 0, importCheck.stderr);
 
   run(process.execPath, ["node_modules/eslint/bin/eslint.js", "fixture.js"], consumerDirectory);
+
+  const invalidLint = spawnSync(process.execPath, [
+    "node_modules/eslint/bin/eslint.js",
+    "invalid.js",
+  ], {
+    cwd: consumerDirectory,
+    encoding: "utf8",
+  });
+  assert.notEqual(invalidLint.status, 0, "invalid JavaScript should fail linting");
+  assert.match(invalidLint.stdout + invalidLint.stderr, /prefer-const/);
 } finally {
   await rm(packDirectory, { recursive: true, force: true });
   await rm(consumerDirectory, { recursive: true, force: true });

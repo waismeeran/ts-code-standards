@@ -11,6 +11,7 @@
   "files": [
     "dist",
     "docs/adr",
+    "docs/presets/javascript.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -63,5 +64,8 @@
     "test:package": "node scripts/validate-package.mjs",
     "pack:dry": "npm pack --dry-run",
     "check": "npm run typecheck && npm run build && npm test && npm run test:package && npm run pack:dry"
+  },
+  "dependencies": {
+    "@eslint/js": "^10.0.1"
   }
 }

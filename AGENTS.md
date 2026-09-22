@@ -12,11 +12,11 @@ The package targets public open-source quality through explicit APIs, compatibil
 
 Update this section when a phase is formally accepted or a new phase is authorized.
 
-- Completed: Phase 0A compatibility probes; Phase 0B repository foundation and local Node 20/22/24 checks; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation.
-- Current authorization: foundation complete; Phase 1 is not authorized.
-- Next candidate phase: Phase 1 — Internal base + JavaScript preset; it is not authorized until the technical lead says so.
-- Implemented: typed empty placeholders for JavaScript, TypeScript, type-checked TypeScript, browser, and Node; ESM package exports; build/test/package infrastructure.
-- Planned only: actual JavaScript/TypeScript rules, Project Service behavior, Node/browser behavior, imports, React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
+- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 internal base + JavaScript preset.
+- Current authorization: Phase 1 complete; Phase 2 is not authorized pending lead review.
+- Next proposed phase: Phase 2 — TypeScript + type-checked TypeScript; do not begin until explicitly authorized.
+- Implemented: internal base composition boundary; functional JavaScript preset; typed empty placeholders for TypeScript, type-checked TypeScript, browser, and Node; ESM package exports; build/test/package infrastructure.
+- Planned only: TypeScript rules and Project Service behavior; Node/browser presets; imports; React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
 
 The temporary npm package name is @scope/js-style-guide; it is provisional. The approved license is MIT.
 
@@ -69,10 +69,11 @@ Read the full implementation plan only for roadmap-wide work, a phase that cites
 - docs/contributing/: detailed contributor guidance.
 - docs/phases/: verified historical implementation and compatibility results.
 - docs/planning/: future implementation planning and roadmap.
+- docs/presets/: consumer-facing preset rationale and guidance.
 - .github/workflows/ci.yml: public Node compatibility CI matrix.
 - `docs/planning/implementation-plan.md`: planning/history document, not a blanket authorization to implement future phases.
 - `docs/phases/phase-0a-compatibility-report.md` and `docs/phases/phase-0b-foundation-report.md`: historical evidence; later lead decisions and Accepted ADRs take precedence.
-- `AGENTS.md` and internal planning, audit, phase, and agent workflow materials are repository-only and excluded from the npm tarball.
+- `AGENTS.md` and internal planning, audit, phase, and agent workflow materials are repository-only and excluded from the npm tarball. JavaScript preset rationale under `docs/presets/` is intentionally included.
 
 The package exports are explicitly listed in package.json. Source files are not implicitly public.
 
@@ -128,7 +129,7 @@ Run commands from the repository root. Use npm and the committed npm lockfile.
 | Tests | npm test |
 | Packed tarball and clean consumer | npm run test:package |
 | Tarball contents preview | npm pack --dry-run |
-| Full foundation gate | npm run check |
+| Full project quality gate | npm run check |
 
 Do not invent alternate quality commands when the relevant script exists.
 

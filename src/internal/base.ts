@@ -1,10 +1,12 @@
 import type { Preset } from "../types.js";
 
 /**
- * Internal foundation boundary.
+ * Shared, internal composition boundary for language presets.
  *
- * This placeholder is intentionally empty. It is not a public package export
- * and must remain an implementation detail when functional rules are added.
+ * Phase 1 deliberately leaves this empty: no non-opinionated configuration has
+ * yet been shown to improve both JavaScript and future TypeScript consumers.
+ * Keep language rules in their language preset and add shared behavior only
+ * when a later phase has evidence for it.
  */
 const base: Preset = [];
 
