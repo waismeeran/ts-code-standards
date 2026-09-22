@@ -1,0 +1,67 @@
+{
+  "name": "@scope/js-style-guide",
+  "version": "0.0.0-foundation",
+  "description": "A modular, ESM-first Flat Config foundation for JavaScript and TypeScript projects.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist",
+    "docs/adr",
+    "README.md",
+    "docs/contributing/CONTRIBUTING.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./javascript": {
+      "types": "./dist/presets/javascript.d.ts",
+      "import": "./dist/presets/javascript.js"
+    },
+    "./typescript": {
+      "types": "./dist/presets/typescript.d.ts",
+      "import": "./dist/presets/typescript.js"
+    },
+    "./typescript-type-checked": {
+      "types": "./dist/presets/typescript-type-checked.d.ts",
+      "import": "./dist/presets/typescript-type-checked.js"
+    },
+    "./browser": {
+      "types": "./dist/presets/browser.d.ts",
+      "import": "./dist/presets/browser.js"
+    },
+    "./node": {
+      "types": "./dist/presets/node.d.ts",
+      "import": "./dist/presets/node.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "eslint": ">=10.0.0 <11.0.0",
+    "typescript": ">=6.0.3 <6.1.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "eslint": "10.11.0",
+    "typescript": "6.0.3"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test",
+    "test:package": "node scripts/validate-package.mjs",
+    "pack:dry": "npm pack --dry-run",
+    "check": "npm run typecheck && npm run build && npm test && npm run test:package && npm run pack:dry"
+  }
+}

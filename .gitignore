@@ -1,0 +1,16 @@
+/node_modules/
+/dist/
+/coverage/
+*.tgz
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+*.tsbuildinfo
+.eslintcache
+.DS_Store
+._*
+*.swp
+*.swo
+*~
