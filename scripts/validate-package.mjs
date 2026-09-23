@@ -15,6 +15,11 @@ const consumers = await Promise.all([
   mkdtemp(join(tmpdir(), "js-style-guide-react-typed-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-react-browser-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-react-imports-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-next-js-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-next-ts-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-next-typed-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-next-imports-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-next-browser-consumer-")),
 ]);
 
 function run(command, args, cwd) {
@@ -85,10 +90,14 @@ try {
   assert.ok(archiveListing.includes("package/docs/presets/node.md"));
   assert.ok(archiveListing.includes("package/docs/presets/imports.md"));
   assert.ok(archiveListing.includes("package/docs/presets/react.md"));
+  assert.ok(archiveListing.includes("package/docs/presets/next.md"));
   assert.ok(archiveListing.includes("package/dist/presets/imports.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.d.ts"));
+  assert.ok(archiveListing.includes("package/dist/presets/next.js"));
+  assert.ok(archiveListing.includes("package/dist/presets/next.d.ts"));
   assert.ok(archiveListing.includes("package/docs/adr/0009-react-linting-strategy.md"));
+  assert.ok(archiveListing.includes("package/docs/adr/0010-next-linting-composition.md"));
   assert.ok(!archiveListing.includes("package/AGENTS.md"));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/tests/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/src/")));
@@ -109,6 +118,11 @@ try {
     reactTypedConsumer,
     reactBrowserConsumer,
     reactImportsConsumer,
+    nextJsConsumer,
+    nextTsConsumer,
+    nextTypedConsumer,
+    nextImportsConsumer,
+    nextBrowserConsumer,
   ] = consumers;
 
   await writeConsumer(javascriptConsumer, "javascript-consumer", tarballPath, undefined, true);
@@ -153,6 +167,12 @@ try {
     'for (const name of ["eslint-plugin-react-hooks", "eslint-plugin-jsx-a11y-x"]) await import(name).then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.equal(reactToolingAbsent.status, 0, "safe non-React consumer should not install React tooling");
+  const nextToolingAbsent = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("@next/eslint-plugin-next").then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.equal(nextToolingAbsent.status, 0, "safe non-Next consumer should not install Next tooling");
 
   const missingTypeScriptPeer = spawnSync("node", [
     "--input-type=module",
@@ -349,7 +369,88 @@ try {
     }
   }
 
-  console.log("Packed JavaScript/browser/Node/imports, minimum-range TypeScript, typed TypeScript, and all five React compositions passed.");
+  const nextTooling = {
+    "@next/eslint-plugin-next": "16.3.6",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-jsx-a11y-x": "0.2.0",
+  };
+  const nextConsumers = [
+    [nextJsConsumer, "packed-next-javascript", undefined, "javascript", "app/page.jsx"],
+    [nextTsConsumer, "packed-next-typescript", "4.8.4", "typescript", "app/page.tsx"],
+    [nextTypedConsumer, "packed-next-typed-typescript", "6.0.3", "typed", "app/page.tsx"],
+    [nextImportsConsumer, "packed-next-imports", "4.8.4", "imports", "src/page.tsx"],
+    [nextBrowserConsumer, "packed-next-browser", "4.8.4", "browser", "src/client.tsx"],
+  ];
+
+  for (const [directory, name, tsVersion, mode, fixturePath] of nextConsumers) {
+    const dependencies = { ...nextTooling };
+    if (mode === "typed") dependencies["@types/node"] = "26.6.2";
+    await writeConsumer(directory, name, tarballPath, tsVersion, false, dependencies);
+    const outputFile = join(directory, fixturePath);
+    await mkdir(join(outputFile, ".."), { recursive: true });
+    const importsLine = mode === "imports" ? 'import { value } from "./value.js";\n' : "";
+    const browserUse = mode === "browser" ? "{window.location.href}{document.title}{navigator.userAgent}" : "Next";
+    const typedViolation = mode === "typed" ? "export async function later(): Promise<void> {}\nlater();\n" : "";
+    await writeFile(outputFile, `${importsLine}${typedViolation}export default function Page() { return <><p>${browserUse}</p><img src='/hero.jpg' alt='Hero' /></>; }\n`);
+    if (mode === "imports") await writeFile(join(directory, "src/value.ts"), "export const value = 42;\n");
+    if (mode === "typed") {
+      await writeFile(join(directory, "tsconfig.json"), JSON.stringify({
+        compilerOptions: {
+          target: "ES2022",
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          strict: true,
+          noEmit: true,
+          jsx: "preserve",
+          skipLibCheck: true,
+        },
+        include: ["app/**/*", "types.d.ts"],
+      }, null, 2));
+      await writeFile(join(directory, "types.d.ts"), "declare namespace JSX { interface IntrinsicElements { [name: string]: unknown } }\n");
+    }
+
+    const languageImport = mode === "javascript"
+      ? 'import javascript from "@scope/js-style-guide/javascript";'
+      : mode === "typed"
+        ? 'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";'
+        : 'import typescript from "@scope/js-style-guide/typescript";';
+    const overlayImport = mode === "imports"
+      ? 'import imports from "@scope/js-style-guide/imports";'
+      : mode === "browser"
+        ? 'import browser from "@scope/js-style-guide/browser";'
+        : "";
+    const languagePreset = mode === "javascript" ? "javascript" : mode === "typed" ? "typescriptTypeChecked" : "typescript";
+    const overlays = mode === "imports" ? `${languagePreset}, next, imports` : mode === "browser" ? `${languagePreset}, next, browser` : `${languagePreset}, next`;
+    await writeFile(join(directory, "eslint.config.js"), [
+      'import { defineConfig } from "eslint/config";',
+      languageImport,
+      'import next from "@scope/js-style-guide/next";',
+      overlayImport,
+      `export default defineConfig(${overlays});`,
+      "",
+    ].filter(Boolean).join("\n"));
+
+    const lintResult = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", "--max-warnings", "0", fixturePath], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+    assert.notEqual(lintResult.status, 0, `${name} should report the Next image optimization warning`);
+    const [result] = JSON.parse(lintResult.stdout);
+    const ruleIds = result.messages.map(({ ruleId }) => ruleId);
+    assert.ok(ruleIds.includes("@next/next/no-img-element"), `${name}: current Next-specific image rule`);
+    assert.ok(ruleIds.includes("jsx-a11y-x/alt-text") === false, `${name}: accessible image remains valid`);
+    if (mode === "typed") assert.ok(ruleIds.includes("@typescript-eslint/no-floating-promises"), `${name}: typed rule`);
+    if (mode === "imports") assert.ok(!ruleIds.includes("import-x/no-unresolved"), `${name}: import resolves`);
+    if (mode === "browser") assert.ok(!ruleIds.includes("no-undef"), `${name}: explicit browser globals`);
+  }
+  const nextRuntimeAbsent = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("next").then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
+  ], { cwd: nextJsConsumer, encoding: "utf8" });
+  assert.equal(nextRuntimeAbsent.status, 0, "Next lint consumers do not need the Next runtime package");
+
+  console.log("Packed JavaScript/browser/Node/imports, React, and all five Next compositions passed; non-framework root isolation passed.");
 } finally {
   await Promise.all([
     rm(packDirectory, { recursive: true, force: true }),

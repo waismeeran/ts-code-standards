@@ -17,6 +17,7 @@
     "docs/presets/node.md",
     "docs/presets/imports.md",
     "docs/presets/react.md",
+    "docs/presets/next.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -54,15 +55,23 @@
       "types": "./dist/presets/react.d.ts",
       "import": "./dist/presets/react.js"
     },
+    "./next": {
+      "types": "./dist/presets/next.d.ts",
+      "import": "./dist/presets/next.js"
+    },
     "./package.json": "./package.json"
   },
   "peerDependencies": {
     "eslint": ">=10.0.0 <11.0.0",
+    "@next/eslint-plugin-next": "^16.3.6",
     "eslint-plugin-jsx-a11y-x": "^0.2.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": ">=4.8.4 <6.1.0"
   },
   "peerDependenciesMeta": {
+    "@next/eslint-plugin-next": {
+      "optional": true
+    },
     "eslint-plugin-jsx-a11y-x": {
       "optional": true
     },
@@ -74,6 +83,7 @@
     }
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^16.3.6",
     "eslint": "10.11.0",
     "eslint-plugin-jsx-a11y-x": "^0.2.0",
     "eslint-plugin-react-hooks": "^7.1.1",

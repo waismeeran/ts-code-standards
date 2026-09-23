@@ -10,6 +10,7 @@ import * as root from "@scope/js-style-guide";
 import browser from "@scope/js-style-guide/browser";
 import imports from "@scope/js-style-guide/imports";
 import javascript from "@scope/js-style-guide/javascript";
+import next from "@scope/js-style-guide/next";
 import node from "@scope/js-style-guide/node";
 import react from "@scope/js-style-guide/react";
 import typescript from "@scope/js-style-guide/typescript";
@@ -50,6 +51,24 @@ const typeCheckedReactLinter = new ESLint({
   overrideConfig: defineConfig(typescriptTypeChecked, react),
   overrideConfigFile: true,
 });
+const javascriptNextLinter = new ESLint({
+  overrideConfig: defineConfig(javascript, next, {
+    settings: { next: { rootDir: "tests/fixtures/next-project" } },
+  }),
+  overrideConfigFile: true,
+});
+const typescriptNextLinter = new ESLint({
+  overrideConfig: defineConfig(typescript, next, {
+    settings: { next: { rootDir: "tests/fixtures/next-project" } },
+  }),
+  overrideConfigFile: true,
+});
+const typeCheckedNextLinter = new ESLint({
+  overrideConfig: defineConfig(typescriptTypeChecked, next, {
+    settings: { next: { rootDir: "tests/fixtures/next-project" } },
+  }),
+  overrideConfigFile: true,
+});
 
 async function lintMessages(code, filePath) {
   const [result] = await javascriptLinter.lintText(code, { filePath });
@@ -73,8 +92,142 @@ test("public preset subpaths resolve to typed arrays", () => {
   assert.ok(node.length > 0);
   assert.ok(imports.length > 0);
   assert.ok(react.length > 0);
+  assert.ok(next.length > react.length);
   assert.ok(typescript.length > 0);
   assert.ok(typescriptTypeChecked.length > typescript.length);
+});
+
+test("Next owns React and Next.js rules without owning language or runtime globals", async () => {
+  const nextOnlyLinter = new ESLint({ overrideConfig: next, overrideConfigFile: true });
+  const nextOnlyTsConfig = await nextOnlyLinter.calculateConfigForFile("src/plain.ts");
+  assert.equal(nextOnlyTsConfig.languageOptions.parser?.name ?? nextOnlyTsConfig.languageOptions.parser?.meta?.name, "espree");
+  assert.equal(nextOnlyTsConfig.languageOptions.parserOptions?.projectService, undefined);
+  assert.ok(!Object.keys(nextOnlyTsConfig.plugins ?? {}).includes("@typescript-eslint"));
+
+  const jsConfig = await javascriptNextLinter.calculateConfigForFile("app/page.jsx");
+  assert.ok(jsConfig.plugins["react-hooks"]);
+  assert.ok(jsConfig.plugins["jsx-a11y-x"]);
+  assert.ok(jsConfig.plugins["@next/next"]);
+  for (const pluginName of ["react", "jsx-a11y", "import", "vitest", "playwright"]) {
+    assert.ok(!(pluginName in jsConfig.plugins), pluginName);
+  }
+  assert.ok(!Object.keys(jsConfig.rules).some((ruleName) => /prettier|format/i.test(ruleName)));
+  assert.equal(jsConfig.rules["@next/next/no-img-element"][0], 1);
+  assert.equal(jsConfig.rules["@next/next/no-html-link-for-pages"][0], 2);
+  assert.equal(jsConfig.languageOptions.globals, undefined);
+  assert.equal(jsConfig.languageOptions.parser?.name ?? jsConfig.languageOptions.parser?.meta?.name, "espree");
+
+  const tsConfig = await typescriptNextLinter.calculateConfigForFile("app/page.tsx");
+  assert.equal(tsConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(tsConfig.languageOptions.parserOptions?.projectService, undefined);
+  assert.ok(tsConfig.plugins["@next/next"]);
+  for (const globalName of ["window", "document", "navigator", "process"]) {
+    assert.ok(!(globalName in (tsConfig.languageOptions.globals ?? {})), globalName);
+  }
+
+  const typedConfig = await typeCheckedNextLinter.calculateConfigForFile(
+    resolve("tests/fixtures/next-project/app/page.tsx"),
+  );
+  assert.equal(typedConfig.languageOptions.parserOptions?.projectService, true);
+});
+
+test("Next lints App Router, Pages Router, server/client components, and current Next behavior", async () => {
+  const appPage = resolve("tests/fixtures/next-project/app/page.jsx");
+  const pagesIndex = resolve("tests/fixtures/next-project/pages/index.jsx");
+  const clientPage = resolve("tests/fixtures/next-project/app/client.jsx");
+  const [appResult, pagesResult, clientResult] = await javascriptNextLinter.lintFiles([
+    appPage,
+    pagesIndex,
+    clientPage,
+  ]);
+  assert.ok(appResult.messages.some((message) => message.ruleId === "@next/next/no-img-element"));
+  assert.ok(pagesResult.messages.some((message) => message.ruleId === "@next/next/no-html-link-for-pages"));
+  assert.ok(clientResult.messages.some((message) => message.ruleId === "no-undef" && message.message.includes("window")));
+  assert.ok(!clientResult.messages.some((message) => message.ruleId === "@next/next/no-async-client-component"));
+
+  const nextBrowserLinter = new ESLint({
+    overrideConfig: defineConfig(typescript, next, browser, {
+      settings: { next: { rootDir: "tests/fixtures/next-project" } },
+    }),
+    overrideConfigFile: true,
+  });
+  const browserConfig = await nextBrowserLinter.calculateConfigForFile("app/client.tsx");
+  assert.ok("window" in browserConfig.languageOptions.globals);
+  const [clientWithBrowser] = await nextBrowserLinter.lintText(
+    "'use client'; export function Client() { return <button>{window.location.href}</button>; }",
+    { filePath: "app/client.tsx" },
+  );
+  assert.ok(!clientWithBrowser.messages.some((message) => message.ruleId === "no-undef"));
+
+  for (const generatedPath of ["next-env.d.ts", ".next/types/app.d.ts", "out/index.js", "build/client.js"]) {
+    assert.equal(await javascriptNextLinter.isPathIgnored(generatedPath), true, generatedPath);
+  }
+});
+
+test("Next composes with typed Project Service, imports, Node, and redundant React safely", async () => {
+  const fixturePath = resolve("tests/fixtures/next-project/app/page.tsx");
+  const [typedResult] = await typeCheckedNextLinter.lintFiles([fixturePath]);
+  assert.ok(typedResult.messages.some((message) => message.ruleId === "@next/next/no-img-element"));
+  assert.ok(typedResult.messages.some((message) => message.ruleId === "@typescript-eslint/no-floating-promises"));
+
+  const aliasScript = [
+    'import { ESLint } from "eslint";',
+    'import { defineConfig } from "eslint/config";',
+    'import typescript from "@scope/js-style-guide/typescript";',
+    'import next from "@scope/js-style-guide/next";',
+    'import imports from "@scope/js-style-guide/imports";',
+    'const linter = new ESLint({ overrideConfig: defineConfig(typescript, next, imports), overrideConfigFile: true });',
+    'const [result] = await linter.lintFiles(["app/page.tsx"]);',
+    'process.stdout.write(JSON.stringify(result.messages.map(({ruleId}) => ruleId)));',
+  ].join("\n");
+  const aliasResult = spawnSync(process.execPath, ["--input-type=module", "-e", aliasScript], {
+    cwd: resolve("tests/fixtures/next-project"),
+    encoding: "utf8",
+  });
+  assert.equal(aliasResult.status, 0, aliasResult.stderr);
+  const aliasRules = JSON.parse(aliasResult.stdout);
+  assert.ok(!aliasRules.includes("import-x/no-unresolved"));
+
+  for (const [preset, filePath] of [
+    [javascript, "src/valid.js"],
+    [typescriptTypeChecked, "tests/fixtures/next-project/app/page.tsx"],
+  ]) {
+    const nextWithImports = new ESLint({
+      overrideConfig: defineConfig(preset, next, imports, {
+        settings: { next: { rootDir: "tests/fixtures/next-project" } },
+      }),
+      overrideConfigFile: true,
+    });
+    const config = await nextWithImports.calculateConfigForFile(filePath);
+    for (const pluginName of ["@next/next", "import-x", "react-hooks", "jsx-a11y-x"]) {
+      assert.ok(config.plugins[pluginName], pluginName);
+      assert.equal(Object.keys(config.plugins).filter((name) => name === pluginName).length, 1);
+    }
+    if (preset === typescriptTypeChecked) {
+      assert.equal(config.languageOptions.parserOptions?.projectService, true);
+    }
+  }
+
+  const nextNode = new ESLint({
+    overrideConfig: defineConfig(typescript, next, node, {
+      settings: { next: { rootDir: "tests/fixtures/next-project" } },
+    }),
+    overrideConfigFile: true,
+  });
+  const nodeConfig = await nextNode.calculateConfigForFile("app/route.ts");
+  assert.ok("process" in nodeConfig.languageOptions.globals);
+  assert.ok(!("window" in nodeConfig.languageOptions.globals));
+
+  const reactNext = new ESLint({
+    overrideConfig: defineConfig(typescript, react, next, {
+      settings: { next: { rootDir: "tests/fixtures/next-project" } },
+    }),
+    overrideConfigFile: true,
+  });
+  const redundantConfig = await reactNext.calculateConfigForFile("app/page.tsx");
+  assert.ok(redundantConfig.plugins["react-hooks"]);
+  const [redundantResult] = await reactNext.lintFiles([fixturePath]);
+  assert.ok(redundantResult.messages.some((message) => message.ruleId === "@next/next/no-img-element"));
 });
 
 test("React is an opt-in overlay with stable Hooks and recommended accessibility rules", async () => {

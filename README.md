@@ -4,7 +4,7 @@ A public JavaScript/TypeScript ESLint Flat Config package foundation. The curren
 
 ## Status
 
-Phases 0–3 are accepted. Phase 4 — React is implemented and awaiting lead review. The package remains unpublished and its name is provisional.
+Phases 0–4 are accepted. Phase 5 — Next.js is implemented and awaiting lead review. The package remains unpublished and its name is provisional.
 
 ### Available now
 
@@ -17,6 +17,7 @@ Phases 0–3 are accepted. Phase 4 — React is implemented and awaiting lead re
 - Browser and Node environment overlays using maintained runtime-global data.
 - An optional import-correctness overlay with TypeScript alias and package-export resolution.
 - An optional React overlay with stable Hooks correctness and recommended JSX accessibility rules, available through `/react`.
+- An optional Next.js overlay with internal React capability and Core Web Vitals rules, available through `/next`.
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
 - CI configuration for Node 20, 22, and 24.
@@ -24,7 +25,7 @@ Phases 0–3 are accepted. Phase 4 — React is implemented and awaiting lead re
 
 ### Planned
 
-Later phases cover Next.js, Angular, Vitest, and Playwright.
+Later phases cover Angular, Vitest, and Playwright.
 
 ## Composition contract
 
@@ -59,6 +60,16 @@ import browser from "@scope/js-style-guide/browser";
 export default defineConfig(javascript, browser);
 ~~~
 
+The Next.js preset includes React behavior; do not add `/react` separately. Choose the language explicitly:
+
+~~~js
+import { defineConfig } from "eslint/config";
+import next from "@scope/js-style-guide/next";
+import typescript from "@scope/js-style-guide/typescript";
+
+export default defineConfig(typescript, next);
+~~~
+
 Choose one TypeScript preset, not both. The fast preset does not need a `tsconfig.json`; the type-checked preset uses Project Service and expects linted files to belong to a TypeScript project.
 
 ~~~js
@@ -85,7 +96,7 @@ export default defineConfig(typescriptTypeChecked);
 ~~~
 
 See the [JavaScript preset guide](./docs/presets/javascript.md) and [TypeScript preset guide](./docs/presets/typescript.md) for rule policies and intentional omissions.
-See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), [imports](./docs/presets/imports.md), and [React](./docs/presets/react.md) guides.
+See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), [imports](./docs/presets/imports.md), [React](./docs/presets/react.md), and [Next.js](./docs/presets/next.md) guides.
 
 ## Development
 
@@ -117,7 +128,7 @@ The package is licensed under MIT. The package identifier shown here is provisio
 ~~~text
 src/                 TypeScript package source
   internal/          Private implementation details, including base
-  presets/           Public language presets and browser/Node/imports/React overlays
+  presets/           Public language presets and browser/Node/imports/React/Next overlays
 tests/               Package architecture tests
 scripts/             Build cleanup and tarball consumer validation
 docs/adr/             Accepted architecture decision records
