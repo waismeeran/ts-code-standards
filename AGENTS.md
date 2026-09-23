@@ -4,7 +4,7 @@ Operational guide for human developers and coding agents. Keep this file short e
 
 ## Project mission
 
-This project is building a public, reusable ESLint Flat Config package for JavaScript and TypeScript. Its foundation is modular: language presets, environment overlays, and future opt-in React, Next.js, Angular, and test integrations have separate responsibilities. Framework use must not be required by core consumers.
+This project is building a public, reusable ESLint Flat Config package for JavaScript and TypeScript. Its foundation is modular: language presets, environment overlays, and opt-in React, Next.js, Angular, and test integrations have separate responsibilities. Framework use must not be required by core consumers.
 
 The package targets public open-source quality through explicit APIs, compatibility evidence, tests against the packed artifact, and human-readable decisions. Domain-driven design (DDD) and architecture enforcement are possible later opt-in concerns, not part of the v1 core.
 
@@ -13,10 +13,11 @@ The package targets public open-source quality through explicit APIs, compatibil
 Update this section when a phase is formally accepted or a new phase is authorized.
 
 - Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets; Phase 3 browser, Node, and imports (accepted).
-- Current authorization: Phase 3 is accepted. Phase 4 is not authorized.
-- Next: Phase 4 — React is planned, pending explicit authorization.
-- Implemented: internal base composition boundary; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports overlay; ESM package exports; build/test/package infrastructure.
-- Planned only: React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
+- Implemented and awaiting lead review: Phase 4 — React.
+- Current authorization: Phase 4 implementation is complete; do not begin Phase 5 until Phase 4 receives lead acceptance and Phase 5 is explicitly authorized.
+- Next planned phase: Phase 5 — Next.js (not authorized).
+- Implemented: internal base composition boundary; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports and React overlays; ESM package exports; build/test/package infrastructure.
+- Planned only: Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
 
 The temporary npm package name is @scope/js-style-guide; it is provisional. The approved license is MIT.
 
@@ -58,7 +59,7 @@ Read the full implementation plan only for roadmap-wide work, a phase that cites
 ## Repository map
 
 - src/index.ts: root exports for core language capabilities.
-- src/presets/: public JavaScript and TypeScript language presets plus browser, Node, and imports overlays.
+- src/presets/: public JavaScript and TypeScript language presets plus browser, Node, imports, and React overlays.
 - src/internal/: private implementation details. src/internal/base.ts is internal and must never become a package export such as /base.
 - src/types.ts: public Preset = Linter.Config[] type.
 - tests/: architecture and package contract tests.
@@ -101,11 +102,11 @@ Preserve these approved constraints unless the active task explicitly authorizes
 - Node engine floor is >=20.19.0; CI covers Node 20, 22, and 24.
 - The TypeScript peer >=4.8.4 <6.1.0 is the Phase 2 supported range; see ADRs 0006 and 0007.
 
-See ADRs 0001–0008 for rationale.
+See ADRs 0001–0009 for rationale.
 
 ## Public API rules
 
-The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, and import validation are separate subpaths: `/browser`, `/node`, and `/imports`. Keep any future integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
+The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, import validation, and React are separate subpaths: `/browser`, `/node`, `/imports`, and `/react`. Keep any future integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
 
 Canonical consumer composition:
 
@@ -188,6 +189,6 @@ Use ADRs as the only decision-record system. Propose an ADR for public API, depe
 
 ## Agent onboarding
 
-A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 3 is accepted; Phase 4 — React is planned but not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
+A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 4 — React is implemented and awaiting lead review; Phase 5 — Next.js is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
 
 For deeper delegation examples and task templates, see `docs/agents/workflow.md`. It supplements AGENTS.md and cannot override it.

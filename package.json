@@ -16,6 +16,7 @@
     "docs/presets/browser.md",
     "docs/presets/node.md",
     "docs/presets/imports.md",
+    "docs/presets/react.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -49,19 +50,33 @@
       "types": "./dist/presets/imports.d.ts",
       "import": "./dist/presets/imports.js"
     },
+    "./react": {
+      "types": "./dist/presets/react.d.ts",
+      "import": "./dist/presets/react.js"
+    },
     "./package.json": "./package.json"
   },
   "peerDependencies": {
     "eslint": ">=10.0.0 <11.0.0",
+    "eslint-plugin-jsx-a11y-x": "^0.2.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": ">=4.8.4 <6.1.0"
   },
   "peerDependenciesMeta": {
+    "eslint-plugin-jsx-a11y-x": {
+      "optional": true
+    },
+    "eslint-plugin-react-hooks": {
+      "optional": true
+    },
     "typescript": {
       "optional": true
     }
   },
   "devDependencies": {
     "eslint": "10.11.0",
+    "eslint-plugin-jsx-a11y-x": "^0.2.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": "6.0.3"
   },
   "scripts": {

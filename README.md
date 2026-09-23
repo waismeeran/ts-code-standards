@@ -4,7 +4,7 @@ A public JavaScript/TypeScript ESLint Flat Config package foundation. The curren
 
 ## Status
 
-Phases 0–3 are implemented. The package remains unpublished and its name is provisional. Later phases cover framework and test presets.
+Phases 0–3 are accepted. Phase 4 — React is implemented and awaiting lead review. The package remains unpublished and its name is provisional.
 
 ### Available now
 
@@ -16,6 +16,7 @@ Phases 0–3 are implemented. The package remains unpublished and its name is pr
 - Fast TypeScript and Project Service type-checked TypeScript presets, available through dedicated subpaths and scoped to `.ts`, `.tsx`, `.mts`, and `.cts`.
 - Browser and Node environment overlays using maintained runtime-global data.
 - An optional import-correctness overlay with TypeScript alias and package-export resolution.
+- An optional React overlay with stable Hooks correctness and recommended JSX accessibility rules, available through `/react`.
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
 - CI configuration for Node 20, 22, and 24.
@@ -23,7 +24,7 @@ Phases 0–3 are implemented. The package remains unpublished and its name is pr
 
 ### Planned
 
-Later phases cover React, Next.js, Angular, Vitest, and Playwright.
+Later phases cover Next.js, Angular, Vitest, and Playwright.
 
 ## Composition contract
 
@@ -38,7 +39,17 @@ export default defineConfig(javascript);
 
 The root exports the dependency-safe JavaScript preset and `Preset` type only. TypeScript presets are isolated behind their dedicated subpaths so root and JavaScript-only consumers do not need TypeScript installed. Ordinary nested arrays are not the supported composition API. The internal base preset is deliberately not a public export.
 
-Environment and import overlays are independent subpaths. For example:
+Environment, imports, and framework overlays are independent subpaths. For example, compose React with JavaScript without enabling browser globals:
+
+~~~js
+import { defineConfig } from "eslint/config";
+import javascript from "@scope/js-style-guide/javascript";
+import react from "@scope/js-style-guide/react";
+
+export default defineConfig(javascript, react);
+~~~
+
+Browser globals are selected separately:
 
 ~~~js
 import { defineConfig } from "eslint/config";
@@ -74,7 +85,7 @@ export default defineConfig(typescriptTypeChecked);
 ~~~
 
 See the [JavaScript preset guide](./docs/presets/javascript.md) and [TypeScript preset guide](./docs/presets/typescript.md) for rule policies and intentional omissions.
-See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), and [imports](./docs/presets/imports.md) guides.
+See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), [imports](./docs/presets/imports.md), and [React](./docs/presets/react.md) guides.
 
 ## Development
 
@@ -106,7 +117,7 @@ The package is licensed under MIT. The package identifier shown here is provisio
 ~~~text
 src/                 TypeScript package source
   internal/          Private implementation details, including base
-  presets/           Public language presets and browser/Node/import overlays
+  presets/           Public language presets and browser/Node/imports/React overlays
 tests/               Package architecture tests
 scripts/             Build cleanup and tarball consumer validation
 docs/adr/             Accepted architecture decision records

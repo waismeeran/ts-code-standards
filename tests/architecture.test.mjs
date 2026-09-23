@@ -11,6 +11,7 @@ import browser from "@scope/js-style-guide/browser";
 import imports from "@scope/js-style-guide/imports";
 import javascript from "@scope/js-style-guide/javascript";
 import node from "@scope/js-style-guide/node";
+import react from "@scope/js-style-guide/react";
 import typescript from "@scope/js-style-guide/typescript";
 import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
 import { join, resolve } from "node:path";
@@ -20,6 +21,7 @@ const publicPresets = {
   imports,
   javascript,
   node,
+  react,
   typescript,
   typescriptTypeChecked,
 };
@@ -34,6 +36,18 @@ const typescriptLinter = new ESLint({
 });
 const typeCheckedLinter = new ESLint({
   overrideConfig: typescriptTypeChecked,
+  overrideConfigFile: true,
+});
+const javascriptReactLinter = new ESLint({
+  overrideConfig: defineConfig(javascript, react),
+  overrideConfigFile: true,
+});
+const typescriptReactLinter = new ESLint({
+  overrideConfig: defineConfig(typescript, react),
+  overrideConfigFile: true,
+});
+const typeCheckedReactLinter = new ESLint({
+  overrideConfig: defineConfig(typescriptTypeChecked, react),
   overrideConfigFile: true,
 });
 
@@ -58,8 +72,139 @@ test("public preset subpaths resolve to typed arrays", () => {
   assert.ok(browser.length > 0);
   assert.ok(node.length > 0);
   assert.ok(imports.length > 0);
+  assert.ok(react.length > 0);
   assert.ok(typescript.length > 0);
   assert.ok(typescriptTypeChecked.length > typescript.length);
+});
+
+test("React is an opt-in overlay with stable Hooks and recommended accessibility rules", async () => {
+  const config = await javascriptReactLinter.calculateConfigForFile("src/component.jsx");
+  assert.equal(
+    config.languageOptions.parser?.name ?? config.languageOptions.parser?.meta?.name,
+    "espree",
+  );
+  assert.equal(config.languageOptions.parserOptions?.ecmaFeatures?.jsx, true);
+  assert.equal(config.languageOptions.globals, undefined);
+  assert.ok(config.plugins["react-hooks"]);
+  assert.ok(config.plugins["jsx-a11y-x"]);
+  assert.equal(config.rules["react-hooks/rules-of-hooks"][0], 2);
+  assert.equal(config.rules["react-hooks/exhaustive-deps"][0], 1);
+  assert.equal(config.rules["jsx-a11y-x/alt-text"][0], 2);
+  assert.equal(config.rules["jsx-a11y-x/no-static-element-interactions"][0], 2);
+  assert.equal(config.rules["jsx/prop-types"], undefined);
+
+  const tsxConfig = await typescriptReactLinter.calculateConfigForFile("src/component.tsx");
+  assert.equal(tsxConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(tsxConfig.languageOptions.parserOptions?.projectService, undefined);
+  assert.ok(tsxConfig.plugins["jsx-a11y-x"]);
+
+  const tsConfig = await typescriptReactLinter.calculateConfigForFile("src/hook.ts");
+  assert.equal(tsConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(tsConfig.languageOptions.parserOptions?.ecmaFeatures?.jsx, undefined);
+  assert.ok(tsConfig.plugins["react-hooks"]);
+  assert.ok(!tsConfig.plugins["jsx-a11y-x"]);
+  assert.equal(tsConfig.languageOptions.globals, undefined);
+  for (const globalName of ["window", "document", "navigator"]) {
+    assert.equal(globalName in (tsConfig.languageOptions.globals ?? {}), false);
+  }
+
+  const reactOnlyTsConfig = await javascriptReactLinter.calculateConfigForFile("src/plain.ts");
+  assert.equal(reactOnlyTsConfig.languageOptions.parserOptions?.ecmaFeatures?.jsx, undefined);
+});
+
+test("React JavaScript composition supports automatic JSX runtime and catches Hooks/a11y issues", async () => {
+  const validComponent = await javascriptReactLinter.lintText(
+    "function Badge() { return <span>New</span>; } export function Greeting({ name }) { return <><Badge /><img src='x.png' alt={name} /></>; }",
+    { filePath: "Greeting.jsx" },
+  );
+  assert.deepEqual(validComponent[0].messages, []);
+
+  const invalidHooks = await javascriptReactLinter.lintText(
+    'import { useEffect } from "react"; export function Example({ condition }) { if (condition) { useEffect(() => {}); } return <main />; }',
+    { filePath: "InvalidHooks.jsx" },
+  );
+  assert.ok(invalidHooks[0].messages.some((message) => message.ruleId === "react-hooks/rules-of-hooks"));
+
+  const dependencyWarning = await javascriptReactLinter.lintText(
+    'import { useEffect } from "react"; export function Example({ value }) { useEffect(() => { console.log(value); }, []); return <main />; }',
+    { filePath: "MissingDependency.jsx" },
+  );
+  assert.ok(dependencyWarning[0].messages.some((message) => message.ruleId === "react-hooks/exhaustive-deps"));
+
+  const invalidA11y = await javascriptReactLinter.lintText(
+    "export function Example() { return <><img src='x.png' /><div onClick={() => {}} /></>; }",
+    { filePath: "InvalidA11y.jsx" },
+  );
+  assert.ok(invalidA11y[0].messages.some((message) => message.ruleId === "jsx-a11y-x/alt-text"));
+  assert.ok(invalidA11y[0].messages.some((message) => message.ruleId === "jsx-a11y-x/no-static-element-interactions"));
+
+  const validHook = await javascriptReactLinter.lintText(
+    'import { useState } from "react"; export function useCounter() { const [count, setCount] = useState(0); return [count, setCount]; }',
+    { filePath: "useCounter.js" },
+  );
+  assert.deepEqual(validHook[0].messages, []);
+});
+
+test("React composes with TypeScript and typed Project Service without parser or rule loss", async () => {
+  const fixturePath = resolve("tests/fixtures/typescript-project/src/react-cases.tsx");
+  const [fastResult] = await typescriptReactLinter.lintFiles([fixturePath]);
+  assert.ok(fastResult.messages.some((message) => message.ruleId === "react-hooks/rules-of-hooks"));
+  assert.ok(fastResult.messages.some((message) => message.ruleId === "jsx-a11y-x/alt-text"));
+
+  const [typedResult] = await typeCheckedReactLinter.lintFiles([fixturePath]);
+  const typedRules = typedResult.messages.map((message) => message.ruleId);
+  assert.ok(typedRules.includes("react-hooks/rules-of-hooks"));
+  assert.ok(typedRules.includes("@typescript-eslint/no-floating-promises"));
+
+  const typedConfig = await typeCheckedReactLinter.calculateConfigForFile(fixturePath);
+  assert.equal(typedConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(typedConfig.languageOptions.parserOptions?.projectService, true);
+});
+
+test("React does not imply browser globals and composes with browser and imports overlays", async () => {
+  const reactOnly = await typescriptReactLinter.calculateConfigForFile("src/component.tsx");
+  for (const globalName of ["window", "document", "navigator"]) {
+    assert.ok(!(globalName in (reactOnly.languageOptions.globals ?? {})), globalName);
+  }
+
+  const reactBrowserLinter = new ESLint({
+    overrideConfig: defineConfig(typescript, react, browser),
+    overrideConfigFile: true,
+  });
+  const reactBrowser = await reactBrowserLinter.calculateConfigForFile("src/component.tsx");
+  for (const globalName of ["window", "document", "navigator"]) {
+    assert.ok(globalName in reactBrowser.languageOptions.globals, globalName);
+  }
+  const lintBrowserGlobals = await reactBrowserLinter.lintText(
+    "export function Example() { return <main>{window.location.href}{navigator.userAgent}{document.title}</main>; }",
+    { filePath: "src/Example.tsx" },
+  );
+  assert.deepEqual(lintBrowserGlobals[0].messages, []);
+
+  for (const [language, preset, filePath] of [
+    ["JavaScript", javascript, "src/component.jsx"],
+    ["TypeScript", typescript, "src/component.tsx"],
+  ]) {
+    const importsReact = new ESLint({
+      overrideConfig: defineConfig(preset, react, imports),
+      overrideConfigFile: true,
+    });
+    const config = await importsReact.calculateConfigForFile(filePath);
+    assert.ok(config.plugins["react-hooks"], language);
+    assert.ok(config.plugins["jsx-a11y-x"], language);
+    assert.ok(config.plugins["import-x"], language);
+    assert.equal(Object.keys(config.plugins).filter((name) => name === "react-hooks").length, 1);
+    assert.equal(Object.keys(config.plugins).filter((name) => name === "jsx-a11y-x").length, 1);
+    if (language === "JavaScript") {
+      const [resolvedImports] = await importsReact.lintFiles([
+        resolve("tests/fixtures/imports-project/src/valid.js"),
+      ]);
+      assert.deepEqual(resolvedImports.messages, []);
+    }
+  }
+
+  const rootReactIsolation = await javascriptLinter.calculateConfigForFile("src/component.jsx");
+  assert.ok(!Object.keys(rootReactIsolation.plugins ?? {}).some((name) => /react|jsx-a11y/.test(name)));
 });
 
 test("defineConfig is the supported array composition boundary", () => {
