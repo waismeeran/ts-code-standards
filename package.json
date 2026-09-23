@@ -12,6 +12,7 @@
     "dist",
     "docs/adr",
     "docs/presets/javascript.md",
+    "docs/presets/typescript.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -45,7 +46,7 @@
   },
   "peerDependencies": {
     "eslint": ">=10.0.0 <11.0.0",
-    "typescript": ">=6.0.3 <6.1.0"
+    "typescript": ">=4.8.4 <6.1.0"
   },
   "peerDependenciesMeta": {
     "typescript": {
@@ -60,12 +61,14 @@
     "clean": "node scripts/clean.mjs",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
+    "lint": "node scripts/lint-typescript.mjs",
     "test": "node --test",
     "test:package": "node scripts/validate-package.mjs",
     "pack:dry": "npm pack --dry-run",
-    "check": "npm run typecheck && npm run build && npm test && npm run test:package && npm run pack:dry"
+    "check": "npm run typecheck && npm run build && npm run lint && npm test && npm run test:package && npm run pack:dry"
   },
   "dependencies": {
-    "@eslint/js": "^10.0.1"
+    "@eslint/js": "^10.0.1",
+    "typescript-eslint": "^8.70.1"
   }
 }

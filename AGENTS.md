@@ -12,11 +12,11 @@ The package targets public open-source quality through explicit APIs, compatibil
 
 Update this section when a phase is formally accepted or a new phase is authorized.
 
-- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 internal base + JavaScript preset.
-- Current authorization: Phase 1 complete; Phase 2 is not authorized pending lead review.
-- Next proposed phase: Phase 2 — TypeScript + type-checked TypeScript; do not begin until explicitly authorized.
-- Implemented: internal base composition boundary; functional JavaScript preset; typed empty placeholders for TypeScript, type-checked TypeScript, browser, and Node; ESM package exports; build/test/package infrastructure.
-- Planned only: TypeScript rules and Project Service behavior; Node/browser presets; imports; React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
+- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets (implementation complete, awaiting lead review).
+- Current authorization: Phase 2 is complete and awaiting lead review. Do not begin Phase 3 until authorized.
+- Next: lead review of the uncommitted Phase 2 diff; the next planned phase is Phase 3 — Browser, Node, and imports.
+- Implemented: internal base composition boundary; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; typed empty placeholders for browser and Node; ESM package exports; build/test/package infrastructure.
+- Planned only: browser/Node environment presets; imports; React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
 
 The temporary npm package name is @scope/js-style-guide; it is provisional. The approved license is MIT.
 
@@ -58,7 +58,7 @@ Read the full implementation plan only for roadmap-wide work, a phase that cites
 ## Repository map
 
 - src/index.ts: root exports for core language capabilities.
-- src/presets/: public placeholder preset modules.
+- src/presets/: public JavaScript and TypeScript preset modules plus environment placeholders.
 - src/internal/: private implementation details. src/internal/base.ts is internal and must never become a package export such as /base.
 - src/types.ts: public Preset = Linter.Config[] type.
 - tests/: architecture and package contract tests.
@@ -92,18 +92,19 @@ Preserve these approved constraints unless the active task explicitly authorizes
 - Angular owns its required TypeScript and template setup.
 - Environment overlays do not own language parsing.
 - Framework and test integrations are opt-in; core/root loading must not import optional framework plugins.
+- Root export isolation: the package root must not eagerly load integrations with additional peer/tooling requirements; expose those integrations through dedicated subpaths.
 - Missing optional adapter peers may produce normal module-resolution errors; do not add custom peer loaders or wrappers without a new decision.
 - Prettier owns formatting; ESLint presets do not duplicate layout formatting.
 - DDD/architecture enforcement is not part of the v1 core.
 - Do not impose organization-specific naming or file conventions by default.
 - Node engine floor is >=20.19.0; CI covers Node 20, 22, and 24.
-- The TypeScript peer >=6.0.3 <6.1.0 is provisional for the Phase 2 toolchain decision; see ADR 0006.
+- The TypeScript peer >=4.8.4 <6.1.0 is the Phase 2 supported range; see ADRs 0006 and 0007.
 
-See ADRs 0001–0006 for rationale.
+See ADRs 0001–0007 for rationale.
 
 ## Public API rules
 
-The root exports core language capabilities only: javascript, typescript, and typescriptTypeChecked, plus the Preset type. Environment capabilities are subpaths. browser and node are currently empty placeholders. Framework/test subpaths will be added only in their authorized implementation phases.
+The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Environment capabilities are subpaths; browser and node are currently empty placeholders. Any future integration with additional peers/tooling must remain behind a subpath and must not be eagerly re-exported from root.
 
 Canonical consumer composition:
 

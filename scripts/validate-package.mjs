@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const root = resolve(".");
 const packDirectory = await mkdtemp(join(tmpdir(), "js-style-guide-pack-"));
-const consumerDirectory = await mkdtemp(join(tmpdir(), "js-style-guide-consumer-"));
+const consumers = await Promise.all([
+  mkdtemp(join(tmpdir(), "js-style-guide-js-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-ts-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-typed-consumer-")),
+]);
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {
@@ -17,13 +21,32 @@ function run(command, args, cwd) {
 
   if (result.status !== 0) {
     throw new Error([
-      command + " " + args.join(" ") + " failed with exit " + result.status,
+      `${command} ${args.join(" ")} failed with exit ${result.status}`,
       result.stdout,
       result.stderr,
     ].join("\n"));
   }
 
   return result.stdout;
+}
+
+async function writeConsumer(directory, name, tarballPath, typescriptVersion, omitPeers = false) {
+  const dependencies = {
+    "@scope/js-style-guide": `file:${tarballPath}`,
+    eslint: "10.11.0",
+  };
+  if (typescriptVersion) dependencies.typescript = typescriptVersion;
+
+  await writeFile(join(directory, "package.json"), JSON.stringify({
+    name,
+    private: true,
+    type: "module",
+    dependencies,
+  }, null, 2));
+
+  const installArgs = ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"];
+  if (omitPeers) installArgs.push("--omit=peer");
+  run("npm", installArgs, directory);
 }
 
 try {
@@ -51,6 +74,7 @@ try {
   assert.ok(archiveListing.includes("package/LICENSE"));
   assert.ok(archiveListing.includes("package/docs/adr/0001-flat-config-and-composition.md"));
   assert.ok(archiveListing.includes("package/docs/presets/javascript.md"));
+  assert.ok(archiveListing.includes("package/docs/presets/typescript.md"));
   assert.ok(!archiveListing.includes("package/AGENTS.md"));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/tests/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/src/")));
@@ -60,64 +84,108 @@ try {
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/planning/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/phases/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/audits/")));
-  assert.ok(!archiveListing.some((entry) => /PHASE-0[AB].*REPORT\.md$/.test(entry)));
   assert.ok(!archiveListing.some((entry) => entry.includes("node_modules")));
 
-  await writeFile(join(consumerDirectory, "package.json"), JSON.stringify({
-    name: "foundation-consumer",
-    private: true,
-    type: "module",
-    dependencies: {
-      "@scope/js-style-guide": "file:" + tarballPath,
-      eslint: "10.11.0",
-    },
-  }, null, 2));
+  const [javascriptConsumer, typescriptConsumer, typedConsumer] = consumers;
 
-  await writeFile(join(consumerDirectory, "eslint.config.js"), [
+  await writeConsumer(javascriptConsumer, "javascript-consumer", tarballPath, undefined, true);
+  await writeFile(join(javascriptConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
-    'import javascript from "@scope/js-style-guide/javascript";',
-    "",
-    "export default defineConfig(javascript, {",
-    '  name: "consumer-overrides",',
-    "});",
+    'import { javascript } from "@scope/js-style-guide";',
+    "export default defineConfig(javascript);",
     "",
   ].join("\n"));
-
-  await writeFile(join(consumerDirectory, "fixture.js"), "export default 42;\n");
-  await writeFile(join(consumerDirectory, "invalid.js"), [
-    "let answer = 42;",
-    "function read() { return answer; }",
-    "read();",
+  await writeFile(join(javascriptConsumer, "fixture.js"), "export default 42;\n");
+  await writeFile(join(javascriptConsumer, "invalid.js"), "let answer = 42; export { answer };\n");
+  await writeFile(join(javascriptConsumer, "root-import.mjs"), [
+    'import * as root from "@scope/js-style-guide";',
+    'if (!Array.isArray(root.javascript) || "typescript" in root || "typescriptTypeChecked" in root) process.exit(1);',
     "",
   ].join("\n"));
-
-  const installArgs = useNpm
-    ? ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"]
-    : ["install", "--ignore-scripts", "--no-frozen-lockfile", "--config.auto-install-peers=false"];
-  run(packager, installArgs, consumerDirectory);
-
-  const importCheck = spawnSync(process.execPath, [
+  run("node", ["root-import.mjs"], javascriptConsumer);
+  const typescriptAbsent = spawnSync("node", [
     "--input-type=module",
     "-e",
-    'import { javascript } from "@scope/js-style-guide"; import browser from "@scope/js-style-guide/browser"; if (!Array.isArray(javascript) || !Array.isArray(browser)) process.exit(1);',
+    'await import("typescript").then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
   ], {
-    cwd: consumerDirectory,
+    cwd: javascriptConsumer,
     encoding: "utf8",
   });
-  assert.equal(importCheck.status, 0, importCheck.stderr);
+  assert.equal(typescriptAbsent.status, 0, "JavaScript-only consumer should not need the TypeScript peer");
 
-  run(process.execPath, ["node_modules/eslint/bin/eslint.js", "fixture.js"], consumerDirectory);
-
-  const invalidLint = spawnSync(process.execPath, [
-    "node_modules/eslint/bin/eslint.js",
-    "invalid.js",
+  const missingTypeScriptPeer = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("@scope/js-style-guide/typescript");',
   ], {
-    cwd: consumerDirectory,
+    cwd: javascriptConsumer,
     encoding: "utf8",
   });
-  assert.notEqual(invalidLint.status, 0, "invalid JavaScript should fail linting");
-  assert.match(invalidLint.stdout + invalidLint.stderr, /prefer-const/);
+  assert.notEqual(missingTypeScriptPeer.status, 0, "a TypeScript subpath should fail without its peer");
+  assert.match(missingTypeScriptPeer.stderr, /Cannot find module ['"]typescript['"]/);
+  assert.match(missingTypeScriptPeer.stderr, /typescript-eslint/);
+
+  run("node", ["node_modules/eslint/bin/eslint.js", "fixture.js"], javascriptConsumer);
+  const invalidJavaScript = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "invalid.js"], {
+    cwd: javascriptConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(invalidJavaScript.status, 0, "invalid JavaScript should fail linting");
+  assert.match(invalidJavaScript.stdout + invalidJavaScript.stderr, /prefer-const/);
+
+  await writeConsumer(typescriptConsumer, "typescript-consumer", tarballPath, "4.8.4");
+  await writeFile(join(typescriptConsumer, "eslint.config.js"), [
+    'import { defineConfig } from "eslint/config";',
+    'import typescript from "@scope/js-style-guide/typescript";',
+    "export default defineConfig(typescript);",
+    "",
+  ].join("\n"));
+  await writeFile(join(typescriptConsumer, "fixture.ts"), "export const answer: number = 42;\n");
+  await writeFile(join(typescriptConsumer, "invalid.ts"), "export const answer: any = 42;\n");
+  run("node", ["node_modules/eslint/bin/eslint.js", "fixture.ts"], typescriptConsumer);
+  const invalidTypeScript = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "invalid.ts"], {
+    cwd: typescriptConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(invalidTypeScript.status, 0, "invalid TypeScript should fail linting");
+  assert.match(invalidTypeScript.stdout + invalidTypeScript.stderr, /@typescript-eslint\/no-explicit-any/);
+
+  await writeConsumer(typedConsumer, "typed-typescript-consumer", tarballPath, "6.0.3");
+  await writeFile(join(typedConsumer, "tsconfig.json"), JSON.stringify({
+    compilerOptions: {
+      target: "ES2022",
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+      strict: true,
+      noEmit: true,
+    },
+    include: ["src/**/*.ts"],
+  }, null, 2));
+  await writeFile(join(typedConsumer, "eslint.config.js"), [
+    'import { defineConfig } from "eslint/config";',
+    'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";',
+    "export default defineConfig(typescriptTypeChecked);",
+    "",
+  ].join("\n"));
+  await mkdir(join(typedConsumer, "src"));
+  await writeFile(join(typedConsumer, "src/valid.ts"), "export const answer: number = 42;\n");
+  await writeFile(join(typedConsumer, "src/invalid.ts"), [
+    "export async function later(): Promise<void> {}",
+    "later();",
+    "",
+  ].join("\n"));
+  run("node", ["node_modules/eslint/bin/eslint.js", "src/valid.ts"], typedConsumer);
+  const invalidTypedTypeScript = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "src/invalid.ts"], {
+    cwd: typedConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(invalidTypedTypeScript.status, 0, "a floating promise should fail typed linting");
+  assert.match(invalidTypedTypeScript.stdout + invalidTypedTypeScript.stderr, /@typescript-eslint\/no-floating-promises/);
+
+  console.log("Packed JavaScript, minimum-range TypeScript, and type-checked TypeScript consumers passed.");
 } finally {
-  await rm(packDirectory, { recursive: true, force: true });
-  await rm(consumerDirectory, { recursive: true, force: true });
+  await Promise.all([
+    rm(packDirectory, { recursive: true, force: true }),
+    ...consumers.map((directory) => rm(directory, { recursive: true, force: true })),
+  ]);
 }

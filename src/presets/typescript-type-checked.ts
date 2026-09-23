@@ -1,10 +1,22 @@
 import type { Preset } from "../types.js";
-import typescript from "./typescript.js";
+import {
+  recommendedTypeCheckedOnly,
+  typescriptFiles,
+  typescriptPreset,
+} from "../internal/typescript.js";
 
-/**
- * Public placeholder only. Future typed rules will include the TypeScript
- * baseline here so consumers normally choose this preset or typescript.
- */
-const typescriptTypeChecked: Preset = [...typescript];
+const typescriptTypeChecked: Preset = [
+  ...typescriptPreset,
+  ...recommendedTypeCheckedOnly,
+  {
+    name: "@scope/js-style-guide/typescript-type-checked/project-service",
+    files: typescriptFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+  },
+];
 
 export default typescriptTypeChecked;

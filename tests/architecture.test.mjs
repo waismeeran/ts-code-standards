@@ -10,6 +10,7 @@ import javascript from "@scope/js-style-guide/javascript";
 import node from "@scope/js-style-guide/node";
 import typescript from "@scope/js-style-guide/typescript";
 import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
+import { resolve } from "node:path";
 
 const publicPresets = {
   browser,
@@ -23,18 +24,25 @@ const javascriptLinter = new ESLint({
   overrideConfig: javascript,
   overrideConfigFile: true,
 });
+const typescriptLinter = new ESLint({
+  overrideConfig: typescript,
+  overrideConfigFile: true,
+});
+const typeCheckedLinter = new ESLint({
+  overrideConfig: typescriptTypeChecked,
+  overrideConfigFile: true,
+});
 
 async function lintMessages(code, filePath) {
   const [result] = await javascriptLinter.lintText(code, { filePath });
   return result.messages;
 }
 
-test("root exports only core language capabilities", () => {
+test("the dependency-safe root exports JavaScript but not optional TypeScript presets", () => {
   assert.deepEqual(Object.keys(root).sort(), [
     "javascript",
-    "typescript",
-    "typescriptTypeChecked",
   ]);
+  assert.ok(Array.isArray(root.javascript));
 });
 
 test("public preset subpaths resolve to typed arrays", () => {
@@ -43,9 +51,11 @@ test("public preset subpaths resolve to typed arrays", () => {
   }
 
   assert.ok(javascript.length >= 2);
-  for (const name of ["browser", "node", "typescript", "typescriptTypeChecked"]) {
+  for (const name of ["browser", "node"]) {
     assert.equal(publicPresets[name].length, 0, name + " remains out of Phase 1 scope");
   }
+  assert.ok(typescript.length > 0);
+  assert.ok(typescriptTypeChecked.length > typescript.length);
 });
 
 test("defineConfig is the supported array composition boundary", () => {
@@ -119,6 +129,115 @@ test("JavaScript remains environment-neutral and does not configure TypeScript",
   }
   for (const rule of ["semi", "quotes", "indent", "comma-dangle", "object-curly-spacing", "brace-style", "max-len"]) {
     assert.equal(config.rules[rule], undefined, rule + " is formatting policy");
+  }
+});
+
+test("the untyped TypeScript preset parses supported extensions without project info", async () => {
+  const fixtures = [
+    ["example.ts", "export const value: string = 'ok';"],
+    ["example.tsx", "export const view = <main />;"],
+    ["example.mts", "export const value: string = 'ok';"],
+    ["example.cts", "export const value: string = 'ok';"],
+    ["example.d.ts", "export declare const value: string;"],
+  ];
+
+  for (const [filePath, code] of fixtures) {
+    const [result] = await typescriptLinter.lintText(code, { filePath });
+    assert.deepEqual(result.messages, [], filePath);
+  }
+
+  const config = await typescriptLinter.calculateConfigForFile("src/example.ts");
+  assert.equal(config.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(config.languageOptions.parserOptions?.projectService, undefined);
+  assert.equal(config.rules["no-undef"][0], 0);
+  assert.equal(config.rules["no-unused-vars"][0], 0);
+  assert.equal(config.rules["@typescript-eslint/no-unused-vars"][0], 2);
+  assert.equal(config.rules["prefer-const"][0], 2);
+  assert.equal(config.rules["@typescript-eslint/no-explicit-any"][0], 2);
+  const javascriptConfig = await typescriptLinter.calculateConfigForFile("src/example.js");
+  assert.equal(javascriptConfig.rules?.["@typescript-eslint/no-explicit-any"], undefined);
+  assert.equal(javascriptConfig.rules?.["prefer-const"], undefined);
+});
+
+test("TypeScript custom policies accept underscore-prefixed unused parameters and type-only imports", async () => {
+  const accepted = await typescriptLinter.lintText(
+    'import type { Linter } from "eslint"; function use(_unused: string): Linter.Config { return {}; } export { use };',
+    { filePath: "policy.ts" },
+  );
+  assert.deepEqual(accepted[0].messages, []);
+
+  const rejected = await typescriptLinter.lintText(
+    'import { Linter } from "eslint"; export const config: Linter.Config = {};',
+    { filePath: "runtime-import.ts" },
+  );
+  assert.ok(rejected[0].messages.some(
+    (message) => message.ruleId === "@typescript-eslint/consistent-type-imports",
+  ));
+});
+
+test("the type-checked preset adds semantic rules and Project Service", async () => {
+  const fixturePath = resolve("tests/fixtures/typescript-project/src/semantic-cases.ts");
+  const [untypedResult] = await typescriptLinter.lintFiles([fixturePath]);
+  const [typedResult] = await typeCheckedLinter.lintFiles([fixturePath]);
+  const typedRules = typedResult.messages.map((message) => message.ruleId);
+
+  assert.ok(!untypedResult.messages.some(
+    (message) => message.ruleId === "@typescript-eslint/no-floating-promises",
+  ));
+  for (const ruleId of [
+    "@typescript-eslint/no-floating-promises",
+    "@typescript-eslint/no-misused-promises",
+    "@typescript-eslint/no-unsafe-argument",
+    "@typescript-eslint/await-thenable",
+  ]) {
+    assert.ok(typedRules.includes(ruleId), ruleId);
+  }
+
+  const config = await typeCheckedLinter.calculateConfigForFile(fixturePath);
+  assert.equal(config.languageOptions.parserOptions.projectService, true);
+  assert.equal(config.rules["@typescript-eslint/no-unused-vars"][0], 2);
+});
+
+test("declarations and project TSX work with both presets; out-of-project typed files fail clearly", async () => {
+  const projectFiles = [
+    resolve("tests/fixtures/typescript-project/src/types.d.ts"),
+    resolve("tests/fixtures/typescript-project/src/view.tsx"),
+  ];
+
+  for (const filePath of projectFiles) {
+    const [untypedResult] = await typescriptLinter.lintFiles([filePath]);
+    const [typedResult] = await typeCheckedLinter.lintFiles([filePath]);
+    assert.deepEqual(untypedResult.messages, [], filePath);
+    assert.deepEqual(typedResult.messages, [], filePath);
+  }
+
+  const outsidePath = resolve("tests/fixtures/outside-of-project.ts");
+  const [outsideResult] = await typeCheckedLinter.lintFiles([outsidePath]);
+  assert.ok(outsideResult.messages.some((message) =>
+    /not found by the project service|allowDefaultProject/.test(message.message),
+  ));
+});
+
+test("effective TypeScript configs are scoped, neutral, and free of format/framework plugins", async () => {
+  for (const linter of [typescriptLinter, typeCheckedLinter]) {
+    for (const extension of ["ts", "tsx", "d.ts"]) {
+      const config = await linter.calculateConfigForFile(`src/example.${extension}`);
+      assert.equal(config.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+      assert.equal(config.languageOptions.globals, undefined);
+      assert.equal(config.rules["no-undef"][0], 0);
+      assert.equal(config.rules["no-unused-vars"][0], 0);
+      assert.equal(config.rules["@typescript-eslint/no-unused-vars"][0], 2);
+      const pluginNames = Object.keys(config.plugins ?? {});
+      assert.ok(pluginNames.includes("@typescript-eslint"));
+      assert.ok(!pluginNames.some((name) => /react|angular|import|vitest|playwright/.test(name)));
+      for (const rule of ["semi", "quotes", "indent", "comma-dangle", "max-len"]) {
+        assert.equal(config.rules[rule], undefined, rule);
+      }
+      assert.equal(
+        config.languageOptions.parserOptions?.projectService,
+        linter === typeCheckedLinter ? true : undefined,
+      );
+    }
   }
 });
 
