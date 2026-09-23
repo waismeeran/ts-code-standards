@@ -13,6 +13,9 @@
     "docs/adr",
     "docs/presets/javascript.md",
     "docs/presets/typescript.md",
+    "docs/presets/browser.md",
+    "docs/presets/node.md",
+    "docs/presets/imports.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -42,6 +45,10 @@
       "types": "./dist/presets/node.d.ts",
       "import": "./dist/presets/node.js"
     },
+    "./imports": {
+      "types": "./dist/presets/imports.d.ts",
+      "import": "./dist/presets/imports.js"
+    },
     "./package.json": "./package.json"
   },
   "peerDependencies": {
@@ -61,7 +68,7 @@
     "clean": "node scripts/clean.mjs",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
-    "lint": "node scripts/lint-typescript.mjs",
+    "lint": "node scripts/lint-project.mjs",
     "test": "node --test",
     "test:package": "node scripts/validate-package.mjs",
     "pack:dry": "npm pack --dry-run",
@@ -69,6 +76,9 @@
   },
   "dependencies": {
     "@eslint/js": "^10.0.1",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "globals": "^17.12.0",
     "typescript-eslint": "^8.70.1"
   }
 }

@@ -1,19 +1,23 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { defineConfig } from "eslint/config";
 import { ESLint } from "eslint";
+import { tmpdir } from "node:os";
 
 import * as root from "@scope/js-style-guide";
 import browser from "@scope/js-style-guide/browser";
+import imports from "@scope/js-style-guide/imports";
 import javascript from "@scope/js-style-guide/javascript";
 import node from "@scope/js-style-guide/node";
 import typescript from "@scope/js-style-guide/typescript";
 import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 const publicPresets = {
   browser,
+  imports,
   javascript,
   node,
   typescript,
@@ -51,9 +55,9 @@ test("public preset subpaths resolve to typed arrays", () => {
   }
 
   assert.ok(javascript.length >= 2);
-  for (const name of ["browser", "node"]) {
-    assert.equal(publicPresets[name].length, 0, name + " remains out of Phase 1 scope");
-  }
+  assert.ok(browser.length > 0);
+  assert.ok(node.length > 0);
+  assert.ok(imports.length > 0);
   assert.ok(typescript.length > 0);
   assert.ok(typescriptTypeChecked.length > typescript.length);
 });
@@ -64,13 +68,264 @@ test("defineConfig is the supported array composition boundary", () => {
   });
 
   assert.equal(Array.isArray(composed), true);
-  assert.equal(composed.length, javascript.length + 1);
+  assert.equal(composed.length, javascript.length + browser.length + 1);
   assert.equal(composed.at(-1).name, "consumer-overrides");
 });
 
+test("browser is a language-neutral overlay and exposes browser, not Node, globals", async () => {
+  const plain = await javascriptLinter.lintText("window.document;", { filePath: "plain.js" });
+  assert.ok(plain[0].messages.some((message) => message.ruleId === "no-undef"));
+
+  const browserLinter = new ESLint({
+    overrideConfig: defineConfig(javascript, browser),
+    overrideConfigFile: true,
+  });
+  const browserResult = await browserLinter.lintText(
+    "window.document; navigator.userAgent; location.href; fetch; URL; console; setTimeout;",
+    { filePath: "browser.js" },
+  );
+  assert.deepEqual(browserResult[0].messages, []);
+
+  const nodeLeak = await browserLinter.lintText("process.cwd(); Buffer.from('x');", {
+    filePath: "browser-only.js",
+  });
+  assert.deepEqual(
+    nodeLeak[0].messages.filter((message) => message.ruleId === "no-undef").length,
+    2,
+  );
+
+  const typescriptBrowser = new ESLint({
+    overrideConfig: defineConfig(typescript, browser),
+    overrideConfigFile: true,
+  });
+  const tsConfig = await typescriptBrowser.calculateConfigForFile("client/view.tsx");
+  assert.equal(tsConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.ok("window" in tsConfig.languageOptions.globals);
+  assert.ok(!("process" in tsConfig.languageOptions.globals));
+});
+
+test("Node uses built-ins for ESM and CommonJS wrapper globals only for explicit CJS extensions", async () => {
+  const plain = await javascriptLinter.lintText("process.cwd();", { filePath: "plain.js" });
+  assert.ok(plain[0].messages.some((message) => message.ruleId === "no-undef"));
+
+  const nodeLinter = new ESLint({
+    overrideConfig: defineConfig(javascript, node),
+    overrideConfigFile: true,
+  });
+  const esm = await nodeLinter.lintText("process.cwd(); Buffer.from('x');", {
+    filePath: "server.mjs",
+  });
+  assert.deepEqual(esm[0].messages, []);
+
+  const invalidEsmWrapper = await nodeLinter.lintText(
+    'require("node:path"); __dirname; __filename; module.exports; exports.value;',
+    { filePath: "server.mjs" },
+  );
+  assert.equal(
+    invalidEsmWrapper[0].messages.filter((message) => message.ruleId === "no-undef").length,
+    5,
+  );
+
+  const commonJs = await nodeLinter.lintText(
+    'require("node:path"); __dirname; __filename; module.exports; exports.value;',
+    { filePath: "server.cjs" },
+  );
+  assert.deepEqual(commonJs[0].messages, []);
+
+  const ambiguousJs = await nodeLinter.calculateConfigForFile("server.js");
+  assert.ok("process" in ambiguousJs.languageOptions.globals);
+  assert.ok(!("require" in ambiguousJs.languageOptions.globals));
+  assert.ok(!("window" in ambiguousJs.languageOptions.globals));
+
+  const nodeTypescript = new ESLint({
+    overrideConfig: defineConfig(typescript, node),
+    overrideConfigFile: true,
+  });
+  const esmConfig = await nodeTypescript.calculateConfigForFile("server.mts");
+  const cjsConfig = await nodeTypescript.calculateConfigForFile("server.cts");
+  assert.equal(esmConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.ok("process" in esmConfig.languageOptions.globals);
+  assert.ok(!("require" in esmConfig.languageOptions.globals));
+  assert.ok("require" in cjsConfig.languageOptions.globals);
+  assert.ok(!("window" in esmConfig.languageOptions.globals));
+
+  const nodeFiles = [
+    ["js", nodeLinter, false],
+    ["mjs", nodeLinter, false],
+    ["cjs", nodeLinter, true],
+    ["jsx", nodeLinter, false],
+    ["ts", nodeTypescript, false],
+    ["mts", nodeTypescript, false],
+    ["cts", nodeTypescript, true],
+    ["tsx", nodeTypescript, false],
+  ];
+  for (const [extension, linter, isCommonJs] of nodeFiles) {
+    const config = await linter.calculateConfigForFile(`server/example.${extension}`);
+    assert.ok("process" in config.languageOptions.globals, extension);
+    assert.ok(!("window" in config.languageOptions.globals), extension);
+    for (const name of ["require", "module", "exports", "__dirname", "__filename"]) {
+      assert.equal(name in config.languageOptions.globals, isCommonJs, `${extension}: ${name}`);
+    }
+  }
+});
+
+test("browser and Node can be scoped independently in one repository", async () => {
+  const mixed = defineConfig(
+    {
+      files: ["client/**/*.ts"],
+      extends: [typescript, browser],
+    },
+    {
+      files: ["server/**/*.ts"],
+      extends: [typescriptTypeChecked, node],
+    },
+  );
+  const linter = new ESLint({ overrideConfig: mixed, overrideConfigFile: true });
+  const client = await linter.calculateConfigForFile("client/app.ts");
+  const server = await linter.calculateConfigForFile("server/app.ts");
+
+  assert.ok("window" in client.languageOptions.globals);
+  assert.ok(!("process" in client.languageOptions.globals));
+  assert.ok("process" in server.languageOptions.globals);
+  assert.ok(!("window" in server.languageOptions.globals));
+  assert.equal(server.languageOptions.parserOptions?.projectService, true);
+});
+
+test("imports checks JS resolution, duplicate declarations, and exported names without sorting", async () => {
+  const importsLinter = new ESLint({
+    overrideConfig: defineConfig(javascript, imports),
+    overrideConfigFile: true,
+  });
+  const fixtureRoot = resolve("tests/fixtures/imports-project/src");
+
+  for (const file of ["valid.js", "target.js"]) {
+    const [result] = await importsLinter.lintFiles([join(fixtureRoot, file)]);
+    assert.deepEqual(result.messages, [], file);
+  }
+
+  const cases = [
+    ["duplicate.js", "import-x/no-duplicates"],
+    ["unresolved.js", "import-x/no-unresolved"],
+    ["invalid-named.js", "import-x/named"],
+  ];
+  for (const [file, ruleId] of cases) {
+    const [result] = await importsLinter.lintFiles([join(fixtureRoot, file)]);
+    assert.ok(result.messages.some((message) => message.ruleId === ruleId), `${file}: ${ruleId}`);
+  }
+
+  const config = await importsLinter.calculateConfigForFile("src/example.js");
+  assert.ok(config.plugins["import-x"]);
+  assert.equal(config.languageOptions.globals, undefined);
+  for (const rule of [
+    "semi",
+    "quotes",
+    "indent",
+    "max-len",
+    "import-x/order",
+    "sort-imports",
+    "import-x/no-cycle",
+    "import-x/no-unused-modules",
+    "unused-imports/no-unused-imports",
+  ]) {
+    assert.equal(config.rules[rule], undefined, rule);
+  }
+  for (const pluginName of Object.keys(config.plugins ?? {})) {
+    assert.ok(!/react|angular|vitest|playwright/.test(pluginName));
+  }
+
+  const importsOnlyLinter = new ESLint({
+    overrideConfig: imports,
+    overrideConfigFile: true,
+  });
+  for (const filePath of ["src/example.js", "src/example.ts"]) {
+    const importsOnly = await importsOnlyLinter.calculateConfigForFile(filePath);
+    assert.notEqual(
+      importsOnly.languageOptions.parser?.meta?.name,
+      "typescript-eslint/parser",
+      filePath,
+    );
+    assert.equal(importsOnly.languageOptions.globals, undefined, filePath);
+    assert.equal(importsOnly.rules["no-undef"], undefined, filePath);
+    assert.equal(importsOnly.rules["prefer-const"], undefined, filePath);
+    assert.ok(importsOnly.plugins["import-x"]);
+    assert.ok(!Object.keys(importsOnly.plugins).includes("@typescript-eslint"));
+  }
+});
+
+test("imports resolves TypeScript path aliases and allows the preset's separate type imports", async () => {
+  const script = [
+    'import { ESLint } from "eslint";',
+    'import { defineConfig } from "eslint/config";',
+    'import typescript from "@scope/js-style-guide/typescript";',
+    'import imports from "@scope/js-style-guide/imports";',
+    'const linter = new ESLint({ overrideConfig: defineConfig(typescript, imports), overrideConfigFile: true });',
+    'const files = ["src/valid-alias.ts", "src/duplicate-alias.ts", "src/unresolved-alias.ts"];',
+    'const results = await Promise.all(files.map((file) => linter.lintFiles([file])));',
+    'process.stdout.write(JSON.stringify(results.map(([result]) => result.messages.map(({ruleId}) => ruleId))));',
+  ].join("\n");
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: resolve("tests/fixtures/imports-project"),
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const [validRules, duplicateRules, unresolvedRules] = JSON.parse(result.stdout);
+  assert.deepEqual(validRules, []);
+  assert.ok(duplicateRules.includes("no-duplicate-imports"));
+  assert.ok(unresolvedRules.includes("import-x/no-unresolved"));
+});
+
+test("imports resolves public package exports and rejects an unexported package subpath", async () => {
+  const consumerRoot = await mkdtemp(join(tmpdir(), "style-guide-package-exports-"));
+  const fixturePackage = join(
+    consumerRoot,
+    "node_modules",
+    "phase3-package-exports-fixture",
+  );
+  await mkdir(fixturePackage, { recursive: true });
+  await mkdir(join(consumerRoot, "src"));
+
+  try {
+    await writeFile(join(fixturePackage, "package.json"), JSON.stringify({
+      name: "phase3-package-exports-fixture",
+      type: "module",
+      exports: {
+        "./feature": "./feature.js",
+      },
+    }, null, 2));
+    await writeFile(join(fixturePackage, "feature.js"), "export const value = 42;\n");
+    await writeFile(join(consumerRoot, "src/valid.mjs"), [
+      'import { value } from "phase3-package-exports-fixture/feature";',
+      "export const answer = value;",
+      "",
+    ].join("\n"));
+    await writeFile(join(consumerRoot, "src/private.mjs"), [
+      'import "phase3-package-exports-fixture/private";',
+      "export const answer = 42;",
+      "",
+    ].join("\n"));
+
+    const packageLinter = new ESLint({
+      cwd: consumerRoot,
+      overrideConfig: defineConfig(javascript, imports),
+      overrideConfigFile: true,
+    });
+    const [valid] = await packageLinter.lintFiles([join(consumerRoot, "src/valid.mjs")]);
+    assert.deepEqual(valid.messages, []);
+    const [privatePath] = await packageLinter.lintFiles([
+      join(consumerRoot, "src/private.mjs"),
+    ]);
+    assert.ok(privatePath.messages.some((message) => message.ruleId === "import-x/no-unresolved"));
+  } finally {
+    await rm(consumerRoot, { recursive: true, force: true });
+  }
+});
+
 test("the internal base is not a package export", async () => {
+  // Verify the package export map rejects this path without import-rule noise.
+  // eslint-disable-next-line import-x/no-unresolved -- expected private subpath
+  const loadInternalBase = () => import("@scope/js-style-guide/base");
   await assert.rejects(
-    import("@scope/js-style-guide/base"),
+    loadInternalBase(),
     (error) => error?.code === "ERR_PACKAGE_PATH_NOT_EXPORTED",
   );
 });

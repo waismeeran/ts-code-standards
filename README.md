@@ -4,7 +4,7 @@ A public JavaScript/TypeScript ESLint Flat Config package foundation. The curren
 
 ## Status
 
-Phases 0–2 are implemented. The package remains unpublished and its name is provisional. Later phases cover environment, import, framework, and test presets.
+Phases 0–3 are implemented. The package remains unpublished and its name is provisional. Later phases cover framework and test presets.
 
 ### Available now
 
@@ -14,6 +14,8 @@ Phases 0–2 are implemented. The package remains unpublished and its name is pr
 - Root and language/environment subpath exports.
 - A functional JavaScript preset using ESLint's recommended rules plus `prefer-const`, scoped to `.js`, `.mjs`, `.cjs`, and `.jsx`.
 - Fast TypeScript and Project Service type-checked TypeScript presets, available through dedicated subpaths and scoped to `.ts`, `.tsx`, `.mts`, and `.cts`.
+- Browser and Node environment overlays using maintained runtime-global data.
+- An optional import-correctness overlay with TypeScript alias and package-export resolution.
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
 - CI configuration for Node 20, 22, and 24.
@@ -21,7 +23,7 @@ Phases 0–2 are implemented. The package remains unpublished and its name is pr
 
 ### Planned
 
-Later phases cover browser, Node, imports, React, Next.js, Angular, Vitest, and Playwright.
+Later phases cover React, Next.js, Angular, Vitest, and Playwright.
 
 ## Composition contract
 
@@ -36,7 +38,26 @@ export default defineConfig(javascript);
 
 The root exports the dependency-safe JavaScript preset and `Preset` type only. TypeScript presets are isolated behind their dedicated subpaths so root and JavaScript-only consumers do not need TypeScript installed. Ordinary nested arrays are not the supported composition API. The internal base preset is deliberately not a public export.
 
+Environment and import overlays are independent subpaths. For example:
+
+~~~js
+import { defineConfig } from "eslint/config";
+import { javascript } from "@scope/js-style-guide";
+import browser from "@scope/js-style-guide/browser";
+
+export default defineConfig(javascript, browser);
+~~~
+
 Choose one TypeScript preset, not both. The fast preset does not need a `tsconfig.json`; the type-checked preset uses Project Service and expects linted files to belong to a TypeScript project.
+
+~~~js
+import { defineConfig } from "eslint/config";
+import imports from "@scope/js-style-guide/imports";
+import node from "@scope/js-style-guide/node";
+import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
+
+export default defineConfig(typescriptTypeChecked, node, imports);
+~~~
 
 ~~~js
 import { defineConfig } from "eslint/config";
@@ -53,6 +74,7 @@ export default defineConfig(typescriptTypeChecked);
 ~~~
 
 See the [JavaScript preset guide](./docs/presets/javascript.md) and [TypeScript preset guide](./docs/presets/typescript.md) for rule policies and intentional omissions.
+See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), and [imports](./docs/presets/imports.md) guides.
 
 ## Development
 
@@ -64,7 +86,7 @@ npm run check
 npm run clean
 ~~~
 
-The repository self-lints its TypeScript source with the untyped preset after building; JavaScript scripts and tests are not self-linted because no Node environment overlay exists yet. Formatting tooling remains separate, and no eslint-plugin-prettier dependency is used.
+The repository self-lints TypeScript source, JavaScript scripts, and Node-based tests with language presets plus the Node and imports overlays after building. Generated `dist/` output is excluded. Formatting tooling remains separate, and no eslint-plugin-prettier dependency is used.
 
 ## Documentation
 
@@ -84,7 +106,7 @@ The package is licensed under MIT. The package identifier shown here is provisio
 ~~~text
 src/                 TypeScript package source
   internal/          Private implementation details, including base
-  presets/           Public JavaScript/TypeScript presets and environment placeholders
+  presets/           Public language presets and browser/Node/import overlays
 tests/               Package architecture tests
 scripts/             Build cleanup and tarball consumer validation
 docs/adr/             Accepted architecture decision records

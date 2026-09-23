@@ -12,11 +12,11 @@ The package targets public open-source quality through explicit APIs, compatibil
 
 Update this section when a phase is formally accepted or a new phase is authorized.
 
-- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets (implementation complete, awaiting lead review).
-- Current authorization: Phase 2 is complete and awaiting lead review. Do not begin Phase 3 until authorized.
-- Next: lead review of the uncommitted Phase 2 diff; the next planned phase is Phase 3 — Browser, Node, and imports.
-- Implemented: internal base composition boundary; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; typed empty placeholders for browser and Node; ESM package exports; build/test/package infrastructure.
-- Planned only: browser/Node environment presets; imports; React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
+- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets; Phase 3 browser, Node, and imports (accepted).
+- Current authorization: Phase 3 is accepted. Phase 4 is not authorized.
+- Next: Phase 4 — React is planned, pending explicit authorization.
+- Implemented: internal base composition boundary; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports overlay; ESM package exports; build/test/package infrastructure.
+- Planned only: React, Next.js, Angular, Vitest, Playwright, and DDD/architecture integrations.
 
 The temporary npm package name is @scope/js-style-guide; it is provisional. The approved license is MIT.
 
@@ -58,7 +58,7 @@ Read the full implementation plan only for roadmap-wide work, a phase that cites
 ## Repository map
 
 - src/index.ts: root exports for core language capabilities.
-- src/presets/: public JavaScript and TypeScript preset modules plus environment placeholders.
+- src/presets/: public JavaScript and TypeScript language presets plus browser, Node, and imports overlays.
 - src/internal/: private implementation details. src/internal/base.ts is internal and must never become a package export such as /base.
 - src/types.ts: public Preset = Linter.Config[] type.
 - tests/: architecture and package contract tests.
@@ -91,6 +91,7 @@ Preserve these approved constraints unless the active task explicitly authorizes
 - Next owns React capability composition; consumers do not add the public React preset alongside Next.
 - Angular owns its required TypeScript and template setup.
 - Environment overlays do not own language parsing.
+- The Node overlay distinguishes Node built-ins from CommonJS wrapper globals; wrapper globals are scoped to `.cjs`/`.cts`, not ambiguous `.js`/`.ts` files.
 - Framework and test integrations are opt-in; core/root loading must not import optional framework plugins.
 - Root export isolation: the package root must not eagerly load integrations with additional peer/tooling requirements; expose those integrations through dedicated subpaths.
 - Missing optional adapter peers may produce normal module-resolution errors; do not add custom peer loaders or wrappers without a new decision.
@@ -100,11 +101,11 @@ Preserve these approved constraints unless the active task explicitly authorizes
 - Node engine floor is >=20.19.0; CI covers Node 20, 22, and 24.
 - The TypeScript peer >=4.8.4 <6.1.0 is the Phase 2 supported range; see ADRs 0006 and 0007.
 
-See ADRs 0001–0007 for rationale.
+See ADRs 0001–0008 for rationale.
 
 ## Public API rules
 
-The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Environment capabilities are subpaths; browser and node are currently empty placeholders. Any future integration with additional peers/tooling must remain behind a subpath and must not be eagerly re-exported from root.
+The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, and import validation are separate subpaths: `/browser`, `/node`, and `/imports`. Keep any future integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
 
 Canonical consumer composition:
 
@@ -112,8 +113,9 @@ Canonical consumer composition:
 import { defineConfig } from "eslint/config";
 import javascript from "@scope/js-style-guide/javascript";
 import node from "@scope/js-style-guide/node";
+import imports from "@scope/js-style-guide/imports";
 
-export default defineConfig(javascript, node);
+export default defineConfig(javascript, node, imports);
 ~~~
 
 Do not compose preset arrays inside an ordinary array. Add public paths intentionally to package.json and test their built and packed forms. Keep internal modules off the export map. Optional integrations must remain isolated from root imports.
@@ -186,6 +188,6 @@ Use ADRs as the only decision-record system. Propose an ADR for public API, depe
 
 ## Agent onboarding
 
-A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Here, no next phase is authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
+A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 3 is accepted; Phase 4 — React is planned but not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
 
 For deeper delegation examples and task templates, see `docs/agents/workflow.md`. It supplements AGENTS.md and cannot override it.

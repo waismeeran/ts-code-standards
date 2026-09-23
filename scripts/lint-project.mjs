@@ -1,12 +1,16 @@
 import { ESLint } from "eslint";
+import imports from "../dist/presets/imports.js";
+import javascript from "../dist/presets/javascript.js";
+import node from "../dist/presets/node.js";
 import typescript from "../dist/presets/typescript.js";
 
 const eslint = new ESLint({
-  overrideConfig: typescript,
+  overrideConfig: [...javascript, ...typescript, ...node, ...imports],
   overrideConfigFile: true,
 });
 
-const results = await eslint.lintFiles(["src/**/*.ts"]);
+const files = ["src/**/*.ts", "scripts/**/*.mjs", "tests/**/*.mjs"];
+const results = await eslint.lintFiles(files);
 let errorCount = 0;
 
 for (const result of results) {
@@ -20,5 +24,5 @@ for (const result of results) {
 if (errorCount > 0) {
   process.exitCode = 1;
 } else {
-  console.log(`Linted ${results.length} TypeScript source files.`);
+  console.log(`Linted ${results.length} TypeScript and Node.js source/test files.`);
 }
