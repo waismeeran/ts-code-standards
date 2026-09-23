@@ -19,6 +19,7 @@
     "docs/presets/react.md",
     "docs/presets/next.md",
     "docs/presets/angular.md",
+    "docs/presets/playwright.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -64,6 +65,10 @@
       "types": "./dist/presets/angular.d.ts",
       "import": "./dist/presets/angular.js"
     },
+    "./playwright": {
+      "types": "./dist/presets/playwright.d.ts",
+      "import": "./dist/presets/playwright.js"
+    },
     "./package.json": "./package.json"
   },
   "peerDependencies": {
@@ -73,6 +78,7 @@
     "@next/eslint-plugin-next": "^16.3.6",
     "eslint": ">=10.0.0 <11.0.0",
     "eslint-plugin-jsx-a11y-x": "^0.2.0",
+    "eslint-plugin-playwright": "^2.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": ">=4.8.4 <6.1.0"
   },
@@ -95,6 +101,9 @@
     "@angular-eslint/template-parser": {
       "optional": true
     },
+    "eslint-plugin-playwright": {
+      "optional": true
+    },
     "typescript": {
       "optional": true
     }
@@ -106,6 +115,7 @@
     "@next/eslint-plugin-next": "^16.3.6",
     "eslint": "10.11.0",
     "eslint-plugin-jsx-a11y-x": "^0.2.0",
+    "eslint-plugin-playwright": "^2.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": "6.0.3"
   },

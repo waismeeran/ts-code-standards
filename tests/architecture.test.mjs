@@ -13,6 +13,7 @@ import imports from "@scope/js-style-guide/imports";
 import javascript from "@scope/js-style-guide/javascript";
 import next from "@scope/js-style-guide/next";
 import node from "@scope/js-style-guide/node";
+import playwright from "@scope/js-style-guide/playwright";
 import react from "@scope/js-style-guide/react";
 import typescript from "@scope/js-style-guide/typescript";
 import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
@@ -23,6 +24,7 @@ const publicPresets = {
   imports,
   javascript,
   node,
+  playwright,
   react,
   typescript,
   typescriptTypeChecked,
@@ -88,7 +90,7 @@ test("the dependency-safe root exports JavaScript but not optional TypeScript pr
   assert.ok(Array.isArray(root.javascript));
 });
 
-test("public preset subpaths resolve to typed arrays", () => {
+test("public preset subpaths resolve to typed arrays and only Playwright is exported", async () => {
   for (const [name, preset] of Object.entries(publicPresets)) {
     assert.equal(Array.isArray(preset), true, name);
   }
@@ -102,6 +104,10 @@ test("public preset subpaths resolve to typed arrays", () => {
   assert.ok(typescript.length > 0);
   assert.ok(typescriptTypeChecked.length > typescript.length);
   assert.ok(angular.length > typescript.length);
+
+  const packageMetadata = JSON.parse(await readFile(resolve("package.json"), "utf8"));
+  assert.ok(packageMetadata.exports["./playwright"]);
+  assert.equal(packageMetadata.exports["./vitest"], undefined);
 });
 
 test("Angular owns the TypeScript baseline and scopes template tooling without runtime globals", async () => {
@@ -178,6 +184,103 @@ test("Angular composes with browser, imports, and optional typed Project Service
     resolve("tests/fixtures/angular-project/src/external.component.ts"),
   ]);
   assert.ok(typedAngularResult.messages.some((message) => message.ruleId === "@angular-eslint/no-empty-lifecycle-method"));
+});
+
+test("Playwright scopes upstream reliability rules to conservative E2E files", async () => {
+  const playwrightLinter = new ESLint({
+    overrideConfig: defineConfig(typescript, playwright),
+    overrideConfigFile: true,
+  });
+  const production = await playwrightLinter.calculateConfigForFile("src/application.ts");
+  const unit = await playwrightLinter.calculateConfigForFile("src/ordinary.spec.ts");
+  const e2e = await playwrightLinter.calculateConfigForFile("e2e/valid.e2e.ts");
+
+  assert.ok(!production.plugins.playwright);
+  assert.ok(!unit.plugins.playwright);
+  assert.ok(e2e.plugins.playwright);
+  assert.equal(e2e.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(e2e.rules["playwright/no-focused-test"][0], 2);
+  assert.equal(e2e.rules["playwright/no-skipped-test"][0], 1);
+  assert.equal(e2e.rules["playwright/no-wait-for-timeout"][0], 1);
+  assert.equal(e2e.rules["playwright/missing-playwright-await"][0], 2);
+  assert.equal(e2e.rules["playwright/consistent-spacing-between-blocks"][0], 0);
+  for (const globalName of ["window", "document", "navigator", "process"]) {
+    assert.ok(
+      e2e.languageOptions.globals?.[globalName] === undefined
+      || e2e.languageOptions.globals[globalName] === "off",
+      globalName,
+    );
+  }
+  assert.ok(!Object.keys(e2e.rules).some((ruleName) => /prettier|format/i.test(ruleName)));
+
+  const [valid] = await playwrightLinter.lintFiles([
+    resolve("tests/fixtures/playwright-project/e2e/valid.e2e.ts"),
+  ]);
+  assert.deepEqual(valid.messages, []);
+
+  const [invalid] = await playwrightLinter.lintFiles([
+    resolve("tests/fixtures/playwright-project/e2e/invalid.e2e.ts"),
+  ]);
+  const invalidRules = invalid.messages.map((message) => message.ruleId);
+  assert.ok(invalidRules.includes("playwright/no-focused-test"));
+  assert.ok(invalidRules.includes("playwright/missing-playwright-await"));
+  assert.ok(invalidRules.includes("playwright/no-wait-for-timeout"));
+
+  const typedPlaywright = new ESLint({
+    overrideConfig: defineConfig(typescriptTypeChecked, playwright),
+    overrideConfigFile: true,
+  });
+  const typedConfig = await typedPlaywright.calculateConfigForFile(
+    resolve("tests/fixtures/playwright-project/e2e/invalid.e2e.ts"),
+  );
+  assert.equal(typedConfig.languageOptions.parserOptions?.projectService, true);
+  const [typedResult] = await typedPlaywright.lintFiles([
+    resolve("tests/fixtures/playwright-project/e2e/invalid.e2e.ts"),
+  ]);
+  assert.ok(typedResult.messages.some((message) => message.ruleId === "playwright/no-focused-test"));
+  assert.ok(typedResult.messages.some((message) => message.ruleId === "@typescript-eslint/no-floating-promises"));
+});
+
+test("Playwright composes with JavaScript, React, Next, Angular, Node, browser, and imports", async () => {
+  const cases = [
+    ["JavaScript", defineConfig(javascript, playwright), "e2e/valid.e2e.js", "espree"],
+    ["React", defineConfig(typescript, react, playwright), "e2e/valid.e2e.tsx", "typescript-eslint/parser"],
+    ["Next", defineConfig(typescript, next, playwright, {
+      settings: { next: { rootDir: "tests/fixtures/next-project" } },
+    }), "e2e/valid.e2e.ts", "typescript-eslint/parser"],
+    ["Angular", defineConfig(angular, playwright), "e2e/valid.e2e.ts", "typescript-eslint/parser"],
+    ["imports", defineConfig(typescript, playwright, imports), "e2e/valid.e2e.ts", "typescript-eslint/parser"],
+    ["Node", defineConfig(typescript, playwright, node), "e2e/valid.e2e.ts", "typescript-eslint/parser"],
+    ["browser", defineConfig(typescript, playwright, browser), "e2e/valid.e2e.ts", "typescript-eslint/parser"],
+  ];
+
+  for (const [name, configArray, filePath, parserName] of cases) {
+    const linter = new ESLint({ overrideConfig: configArray, overrideConfigFile: true });
+    const config = await linter.calculateConfigForFile(filePath);
+    assert.ok(config.plugins.playwright, name);
+    assert.equal(config.languageOptions.parser?.meta?.name ?? config.languageOptions.parser?.name, parserName, name);
+    if (name !== "browser") assert.equal(config.languageOptions.globals?.window, undefined, name);
+    if (name === "Node") assert.ok("process" in (config.languageOptions.globals ?? {}));
+    if (name === "browser") assert.ok("window" in (config.languageOptions.globals ?? {}));
+    if (name === "React") {
+      assert.ok(config.plugins["react-hooks"]);
+      assert.equal(Object.keys(config.plugins).filter((pluginName) => pluginName === "playwright").length, 1);
+    }
+    if (name === "Next") assert.ok(config.plugins["@next/next"]);
+    if (name === "Angular") assert.ok(config.plugins["@angular-eslint"]);
+    if (name === "imports") assert.ok(config.plugins["import-x"]);
+  }
+
+  for (const filePath of ["src/application.ts", "src/ordinary.spec.ts"]) {
+    const nextLinter = new ESLint({
+      overrideConfig: defineConfig(typescript, next, playwright, {
+        settings: { next: { rootDir: "tests/fixtures/next-project" } },
+      }),
+      overrideConfigFile: true,
+    });
+    const config = await nextLinter.calculateConfigForFile(filePath);
+    assert.ok(!config.plugins.playwright, filePath);
+  }
 });
 
 test("Next owns React and Next.js rules without owning language or runtime globals", async () => {
@@ -441,6 +544,7 @@ test("React does not imply browser globals and composes with browser and imports
 
   const rootReactIsolation = await javascriptLinter.calculateConfigForFile("src/component.jsx");
   assert.ok(!Object.keys(rootReactIsolation.plugins ?? {}).some((name) => /react|jsx-a11y/.test(name)));
+  assert.ok(!rootReactIsolation.plugins?.playwright);
 });
 
 test("defineConfig is the supported array composition boundary", () => {

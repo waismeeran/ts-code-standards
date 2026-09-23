@@ -8,6 +8,7 @@ const root = resolve(".");
 const packDirectory = await mkdtemp(join(tmpdir(), "js-style-guide-pack-"));
 const consumers = await Promise.all([
   mkdtemp(join(tmpdir(), "js-style-guide-js-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-playwright-js-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-ts-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-typed-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-react-js-consumer-")),
@@ -96,6 +97,7 @@ try {
   assert.ok(archiveListing.includes("package/docs/presets/react.md"));
   assert.ok(archiveListing.includes("package/docs/presets/next.md"));
   assert.ok(archiveListing.includes("package/docs/presets/angular.md"));
+  assert.ok(archiveListing.includes("package/docs/presets/playwright.md"));
   assert.ok(archiveListing.includes("package/dist/presets/imports.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.d.ts"));
@@ -103,9 +105,12 @@ try {
   assert.ok(archiveListing.includes("package/dist/presets/next.d.ts"));
   assert.ok(archiveListing.includes("package/dist/presets/angular.js"));
   assert.ok(archiveListing.includes("package/dist/presets/angular.d.ts"));
+  assert.ok(archiveListing.includes("package/dist/presets/playwright.js"));
+  assert.ok(archiveListing.includes("package/dist/presets/playwright.d.ts"));
   assert.ok(archiveListing.includes("package/docs/adr/0009-react-linting-strategy.md"));
   assert.ok(archiveListing.includes("package/docs/adr/0010-next-linting-composition.md"));
   assert.ok(archiveListing.includes("package/docs/adr/0011-angular-linting-strategy.md"));
+  assert.ok(archiveListing.includes("package/docs/adr/0012-vitest-deferral-node-compatibility.md"));
   assert.ok(!archiveListing.includes("package/AGENTS.md"));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/tests/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/src/")));
@@ -119,6 +124,7 @@ try {
 
   const [
     javascriptConsumer,
+    playwrightJsConsumer,
     typescriptConsumer,
     typedConsumer,
     reactJsConsumer,
@@ -191,6 +197,12 @@ try {
     'for (const name of ["@angular-eslint/eslint-plugin", "@angular-eslint/eslint-plugin-template", "@angular-eslint/template-parser", "@angular-eslint/bundled-angular-compiler", "@angular/compiler", "@angular/core"]) await import(name).then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.equal(angularToolingAbsent.status, 0, "safe non-Angular consumer should not install Angular tooling or runtime");
+  const playwrightToolingAbsent = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("eslint-plugin-playwright").then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.equal(playwrightToolingAbsent.status, 0, "safe root consumer should not install Playwright tooling");
 
   const missingTypeScriptPeer = spawnSync("node", [
     "--input-type=module",
@@ -203,6 +215,17 @@ try {
   assert.notEqual(missingTypeScriptPeer.status, 0, "a TypeScript subpath should fail without its peer");
   assert.match(missingTypeScriptPeer.stderr, /Cannot find module ['"]typescript['"]/);
   assert.match(missingTypeScriptPeer.stderr, /typescript-eslint/);
+
+  const missingPlaywrightPeer = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("@scope/js-style-guide/playwright");',
+  ], {
+    cwd: javascriptConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(missingPlaywrightPeer.status, 0, "the Playwright subpath should require its optional peer");
+  assert.match(missingPlaywrightPeer.stderr, /Cannot find package ['"]eslint-plugin-playwright['"]/);
 
   run("node", ["node_modules/eslint/bin/eslint.js", "client.js", "server.mjs", "server.cjs", "imports.js"], javascriptConsumer);
   const invalidBrowserEnvironment = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "client-invalid.js"], {
@@ -218,8 +241,56 @@ try {
   assert.notEqual(invalidJavaScript.status, 0, "invalid JavaScript should fail linting");
   assert.match(invalidJavaScript.stdout + invalidJavaScript.stderr, /prefer-const/);
 
-  await writeConsumer(typescriptConsumer, "typescript-consumer", tarballPath, "4.8.4");
+  await writeConsumer(playwrightJsConsumer, "playwright-javascript-consumer", tarballPath, undefined, false, {
+    "eslint-plugin-playwright": "2.12.0",
+  });
+  await mkdir(join(playwrightJsConsumer, "e2e"));
+  await mkdir(join(playwrightJsConsumer, "src"));
+  await writeFile(join(playwrightJsConsumer, "eslint.config.js"), [
+    'import { defineConfig } from "eslint/config";',
+    'import javascript from "@scope/js-style-guide/javascript";',
+    'import playwright from "@scope/js-style-guide/playwright";',
+    "export default defineConfig(javascript, playwright);",
+    "",
+  ].join("\n"));
+  await writeFile(join(playwrightJsConsumer, "e2e/home.e2e.js"), [
+    "/* global test, expect */",
+    'test("home loads", async ({ page }) => { await page.goto("/"); await expect(page.getByRole("heading")).toBeVisible(); });',
+    "",
+  ].join("\n"));
+  await writeFile(join(playwrightJsConsumer, "e2e/focused.e2e.js"), [
+    "/* global test, expect */",
+    'test.only("focused", async ({ page }) => { page.waitForResponse("/api"); await expect(page.getByRole("heading")).toBeVisible(); });',
+    "",
+  ].join("\n"));
+  await writeFile(join(playwrightJsConsumer, "src/application.js"), [
+    "/* global test */",
+    'test.only("application source is not an E2E file", () => {});',
+    "",
+  ].join("\n"));
+  await writeFile(join(playwrightJsConsumer, "src/ordinary.spec.js"), [
+    "/* global test */",
+    'test.only("unit spec is not an E2E file", () => {});',
+    "",
+  ].join("\n"));
+  run("node", ["node_modules/eslint/bin/eslint.js", "e2e/home.e2e.js"], playwrightJsConsumer);
+  const playwrightJsInvalid = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", "e2e/focused.e2e.js"], {
+    cwd: playwrightJsConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(playwrightJsInvalid.status, 0, "focused JavaScript E2E source must fail linting");
+  assert.match(playwrightJsInvalid.stdout, /playwright\/no-focused-test/);
+  const playwrightJsOutOfScope = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", "src/application.js", "src/ordinary.spec.js"], {
+    cwd: playwrightJsConsumer,
+    encoding: "utf8",
+  });
+  assert.equal(playwrightJsOutOfScope.status, 0, "production and unit-spec JavaScript should not receive Playwright rules");
+
+  await writeConsumer(typescriptConsumer, "typescript-playwright-consumer", tarballPath, "4.8.4", false, {
+    "eslint-plugin-playwright": "2.12.0",
+  });
   await mkdir(join(typescriptConsumer, "src"));
+  await mkdir(join(typescriptConsumer, "e2e"));
   await writeFile(join(typescriptConsumer, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
       target: "ES2022",
@@ -230,19 +301,44 @@ try {
       baseUrl: ".",
       paths: { "@app/*": ["src/*"] },
     },
-    include: ["src/**/*.ts"],
+    include: ["src/**/*.ts", "e2e/**/*.ts"],
   }, null, 2));
   await writeFile(join(typescriptConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
     'import browser from "@scope/js-style-guide/browser";',
     'import imports from "@scope/js-style-guide/imports";',
+    'import playwright from "@scope/js-style-guide/playwright";',
     'import typescript from "@scope/js-style-guide/typescript";',
-    'export default defineConfig({ files: ["src/**/*.ts"], extends: [typescript, browser, imports] });',
+    "export default defineConfig(typescript, browser, imports, playwright);",
     "",
   ].join("\n"));
   await writeFile(join(typescriptConsumer, "src/model.ts"), "export interface Model { value: number }\nexport const model: Model = { value: 42 };\n");
   await writeFile(join(typescriptConsumer, "src/valid.ts"), 'import type { Model } from "@app/model";\nimport { model } from "@app/model";\nexport const href = window.location.href;\nexport const answer: Model = model;\n');
   await writeFile(join(typescriptConsumer, "src/invalid.ts"), "export const answer: any = 42;\n");
+  await writeFile(join(typescriptConsumer, "src/ordinary.spec.ts"), [
+    'declare const test: { only(title: string, callback: () => void): void };',
+    'test.only("ordinary unit spec", () => {});',
+    "",
+  ].join("\n"));
+  await writeFile(join(typescriptConsumer, "src/application.ts"), [
+    'declare const test: { only(title: string, callback: () => void): void };',
+    'test.only("production file", () => {});',
+    "",
+  ].join("\n"));
+  await writeFile(join(typescriptConsumer, "e2e/valid.e2e.ts"), [
+    'interface Page { goto(url: string): Promise<void>; getByRole(role: string): { toBeVisible(): Promise<void> } }',
+    'interface Test { (title: string, callback: (ctx: { page: Page }) => Promise<void>): void; only: Test }',
+    'declare const test: Test; declare function expect(locator: ReturnType<Page["getByRole"]>): { toBeVisible(): Promise<void> };',
+    'test("page renders", async ({ page }) => { await page.goto("/"); await expect(page.getByRole("main")).toBeVisible(); });',
+    "",
+  ].join("\n"));
+  await writeFile(join(typescriptConsumer, "e2e/invalid.e2e.ts"), [
+    'interface Page { waitForResponse(url: string): Promise<unknown>; waitForTimeout(ms: number): Promise<void>; getByRole(role: string): { toBeVisible(): Promise<void> } }',
+    'interface Test { (title: string, callback: (ctx: { page: Page }) => Promise<void>): void; only: Test }',
+    'declare const test: Test; declare function expect(locator: ReturnType<Page["getByRole"]>): { toBeVisible(): Promise<void> };',
+    'test.only("focused", async ({ page }) => { page.waitForResponse("/api"); await page.waitForTimeout(100); await expect(page.getByRole("main")).toBeVisible(); });',
+    "",
+  ].join("\n"));
   run("node", ["node_modules/eslint/bin/eslint.js", "src/valid.ts"], typescriptConsumer);
   const invalidTypeScript = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "src/invalid.ts"], {
     cwd: typescriptConsumer,
@@ -250,11 +346,27 @@ try {
   });
   assert.notEqual(invalidTypeScript.status, 0, "invalid TypeScript should fail linting");
   assert.match(invalidTypeScript.stdout + invalidTypeScript.stderr, /@typescript-eslint\/no-explicit-any/);
+  run("node", ["node_modules/eslint/bin/eslint.js", "e2e/valid.e2e.ts"], typescriptConsumer);
+  const typescriptPlaywrightInvalid = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", "e2e/invalid.e2e.ts"], {
+    cwd: typescriptConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(typescriptPlaywrightInvalid.status, 0, "invalid TypeScript E2E source must fail linting");
+  assert.match(typescriptPlaywrightInvalid.stdout, /playwright\/no-focused-test/);
+  assert.match(typescriptPlaywrightInvalid.stdout, /playwright\/missing-playwright-await/);
+  assert.match(typescriptPlaywrightInvalid.stdout, /playwright\/no-wait-for-timeout/);
+  const typescriptPlaywrightOutOfScope = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", "src/application.ts", "src/ordinary.spec.ts"], {
+    cwd: typescriptConsumer,
+    encoding: "utf8",
+  });
+  assert.equal(typescriptPlaywrightOutOfScope.status, 0, "production and ordinary .spec.ts should not receive Playwright rules");
 
   await writeConsumer(typedConsumer, "typed-typescript-consumer", tarballPath, "6.0.3", false, {
     "@types/node": "26.6.2",
+    "eslint-plugin-playwright": "2.12.0",
   });
   await mkdir(join(typedConsumer, "src"));
+  await mkdir(join(typedConsumer, "e2e"));
   await writeFile(join(typedConsumer, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
       target: "ES2022",
@@ -265,19 +377,29 @@ try {
       baseUrl: ".",
       paths: { "@app/*": ["src/*"] },
     },
-    include: ["src/**/*.ts"],
+    include: ["src/**/*.ts", "e2e/**/*.ts"],
   }, null, 2));
   await writeFile(join(typedConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
     'import imports from "@scope/js-style-guide/imports";',
     'import node from "@scope/js-style-guide/node";',
+    'import playwright from "@scope/js-style-guide/playwright";',
     'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";',
-    'export default defineConfig({ files: ["src/**/*.ts"], extends: [typescriptTypeChecked, node, imports] });',
+    "export default defineConfig(typescriptTypeChecked, node, imports, playwright);",
     "",
   ].join("\n"));
   await writeFile(join(typedConsumer, "src/model.ts"), "export interface Model { value: number }\nexport const model: Model = { value: 42 };\n");
   await writeFile(join(typedConsumer, "src/valid.ts"), 'import { model } from "./model.js";\nvoid process;\nexport const answer: number = model.value;\n');
   await writeFile(join(typedConsumer, "src/invalid.ts"), [
+    "export async function later(): Promise<void> {}",
+    "later();",
+    "",
+  ].join("\n"));
+  await writeFile(join(typedConsumer, "e2e/invalid.e2e.ts"), [
+    'interface Page { waitForResponse(url: string): Promise<unknown>; waitForTimeout(ms: number): Promise<void>; getByRole(role: string): { toBeVisible(): Promise<void> } }',
+    'interface Test { (title: string, callback: (ctx: { page: Page }) => Promise<void>): void; only: Test }',
+    'declare const test: Test; declare function expect(locator: ReturnType<Page["getByRole"]>): { toBeVisible(): Promise<void> };',
+    'test.only("focused", async ({ page }) => { page.waitForResponse("/api"); await page.waitForTimeout(100); await expect(page.getByRole("main")).toBeVisible(); });',
     "export async function later(): Promise<void> {}",
     "later();",
     "",
@@ -289,6 +411,13 @@ try {
   });
   assert.notEqual(invalidTypedTypeScript.status, 0, "a floating promise should fail typed linting");
   assert.match(invalidTypedTypeScript.stdout + invalidTypedTypeScript.stderr, /@typescript-eslint\/no-floating-promises/);
+  const typedPlaywrightInvalid = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", "e2e/invalid.e2e.ts"], {
+    cwd: typedConsumer,
+    encoding: "utf8",
+  });
+  assert.notEqual(typedPlaywrightInvalid.status, 0, "typed Playwright E2E source must report plugin and typed diagnostics");
+  assert.match(typedPlaywrightInvalid.stdout, /playwright\/no-focused-test/);
+  assert.match(typedPlaywrightInvalid.stdout, /@typescript-eslint\/no-floating-promises/);
 
   const reactTooling = {
     "eslint-plugin-react-hooks": "7.1.1",
@@ -389,6 +518,7 @@ try {
 
   const nextTooling = {
     "@next/eslint-plugin-next": "16.3.6",
+    "eslint-plugin-playwright": "2.12.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-jsx-a11y-x": "0.2.0",
   };
@@ -426,6 +556,16 @@ try {
       }, null, 2));
       await writeFile(join(directory, "types.d.ts"), "declare namespace JSX { interface IntrinsicElements { [name: string]: unknown } }\n");
     }
+    if (mode === "typescript") {
+      await mkdir(join(directory, "e2e"));
+      await writeFile(join(directory, "e2e/home.e2e.ts"), [
+        'interface Page { goto(url: string): Promise<void>; getByRole(role: string): { toBeVisible(): Promise<void> } }',
+        'interface Test { (title: string, callback: (ctx: { page: Page }) => Promise<void>): void; only: Test }',
+        'declare const test: Test; declare function expect(locator: ReturnType<Page["getByRole"]>): { toBeVisible(): Promise<void> };',
+        'test("next page works", async ({ page }) => { await page.goto("/"); await expect(page.getByRole("main")).toBeVisible(); });',
+        "",
+      ].join("\n"));
+    }
 
     const languageImport = mode === "javascript"
       ? 'import javascript from "@scope/js-style-guide/javascript";'
@@ -437,13 +577,19 @@ try {
       : mode === "browser"
         ? 'import browser from "@scope/js-style-guide/browser";'
         : "";
+    const playwrightImport = 'import playwright from "@scope/js-style-guide/playwright";';
     const languagePreset = mode === "javascript" ? "javascript" : mode === "typed" ? "typescriptTypeChecked" : "typescript";
-    const overlays = mode === "imports" ? `${languagePreset}, next, imports` : mode === "browser" ? `${languagePreset}, next, browser` : `${languagePreset}, next`;
+    const overlays = mode === "imports"
+      ? `${languagePreset}, next, imports, playwright`
+      : mode === "browser"
+        ? `${languagePreset}, next, browser, playwright`
+        : `${languagePreset}, next, playwright`;
     await writeFile(join(directory, "eslint.config.js"), [
       'import { defineConfig } from "eslint/config";',
       languageImport,
       'import next from "@scope/js-style-guide/next";',
       overlayImport,
+      playwrightImport,
       `export default defineConfig(${overlays});`,
       "",
     ].filter(Boolean).join("\n"));
@@ -460,6 +606,17 @@ try {
     if (mode === "typed") assert.ok(ruleIds.includes("@typescript-eslint/no-floating-promises"), `${name}: typed rule`);
     if (mode === "imports") assert.ok(!ruleIds.includes("import-x/no-unresolved"), `${name}: import resolves`);
     if (mode === "browser") assert.ok(!ruleIds.includes("no-undef"), `${name}: explicit browser globals`);
+    if (mode === "typescript") {
+      run("node", ["node_modules/eslint/bin/eslint.js", "e2e/home.e2e.ts"], directory);
+      const e2eConfig = spawnSync("node", ["--input-type=module", "-e", [
+        'import { ESLint } from "eslint";',
+        'const eslint = new ESLint({ overrideConfigFile: "eslint.config.js" });',
+        'const config = await eslint.calculateConfigForFile("e2e/home.e2e.ts");',
+        'if (!config.plugins.playwright || !config.plugins["@next/next"]) process.exit(1);',
+        'if ("window" in (config.languageOptions.globals ?? {}) && config.languageOptions.globals.window !== "off") process.exit(1);',
+      ].join("\n")], { cwd: directory, encoding: "utf8" });
+      assert.equal(e2eConfig.status, 0, `${name}: Next + Playwright effective config`);
+    }
   }
   const nextRuntimeAbsent = spawnSync("node", [
     "--input-type=module",
@@ -472,6 +629,7 @@ try {
     "@angular-eslint/eslint-plugin": "21.4.0",
     "@angular-eslint/eslint-plugin-template": "21.4.0",
     "@angular-eslint/template-parser": "21.4.0",
+    "eslint-plugin-playwright": "2.12.0",
   };
   const angularConsumers = [
     [angularConsumer, "packed-angular", "application"],
@@ -493,14 +651,15 @@ try {
         ? 'import imports from "@scope/js-style-guide/imports";'
         : "";
     const overlays = mode === "browser" ? ", browser" : mode === "imports" ? ", imports" : "";
-    const languagePreset = mode === "typed" ? "angular, typescriptTypeChecked" : `angular${overlays}`;
+    const languagePreset = mode === "typed" ? "angular, typescriptTypeChecked, playwright" : `angular${overlays}, playwright`;
     await writeFile(join(directory, "eslint.config.js"), [
       'import { defineConfig } from "eslint/config";',
       'import angular from "@scope/js-style-guide/angular";',
       languageImport,
       overlayImport,
+      'import playwright from "@scope/js-style-guide/playwright";',
       mode === "imports"
-        ? 'export default defineConfig(angular, { files: ["src/imports.ts"], extends: [imports] });'
+        ? 'export default defineConfig(angular, playwright, { files: ["src/imports.ts"], extends: [imports] });'
         : `export default defineConfig(${languagePreset});`,
       "",
     ].filter(Boolean).join("\n"));
@@ -525,8 +684,21 @@ try {
       "",
     ].join("\n"));
     await writeFile(join(directory, "src/app.component.html"), "@for (item of items; track item.id) { <img [src]='item.src'> }\n");
+    if (mode === "application") {
+      await mkdir(join(directory, "e2e"));
+      await writeFile(join(directory, "e2e/home.e2e.ts"), [
+        'interface Page { goto(url: string): Promise<void>; getByRole(role: string): { toBeVisible(): Promise<void> } }',
+        'interface Test { (title: string, callback: (ctx: { page: Page }) => Promise<void>): void; only: Test }',
+        'declare const test: Test; declare function expect(locator: ReturnType<Page["getByRole"]>): { toBeVisible(): Promise<void> };',
+        'test("angular page works", async ({ page }) => { await page.goto("/"); await expect(page.getByRole("main")).toBeVisible(); });',
+        "",
+      ].join("\n"));
+    }
     if (mode === "browser") {
       await writeFile(join(directory, "src/client.ts"), "export const locationHref = window.location.href;\n");
+    }
+    if (mode === "application") {
+      run("node", ["node_modules/eslint/bin/eslint.js", "e2e/home.e2e.ts"], directory);
     }
     if (mode === "imports") {
       await writeFile(join(directory, "src/value.ts"), "export const value = 42;\n");
@@ -573,7 +745,7 @@ try {
     assert.equal(runtimeAbsent.status, 0, `${name}: lint configuration does not require Angular runtime packages`);
   }
 
-  console.log("Packed JavaScript/browser/Node/imports, React, Next, and Angular compositions passed; non-framework root isolation passed.");
+  console.log("Packed JavaScript/browser/Node/imports, React, Next, Angular, and Playwright compositions passed; Vitest remains deferred and non-framework root isolation passed.");
 } finally {
   await Promise.all([
     rm(packDirectory, { recursive: true, force: true }),

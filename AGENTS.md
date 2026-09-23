@@ -12,12 +12,12 @@ The package targets public open-source quality through explicit APIs, compatibil
 
 Update this section when a phase is formally accepted or a new phase is authorized.
 
-- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets; Phase 3 browser, Node, and imports (accepted); Phase 4 React (accepted); Phase 5 Next.js (accepted).
-- Implemented and awaiting lead review: Phase 6 — Angular.
-- Current authorization: Phase 6 implementation is complete and awaiting lead review. Do not begin Phase 7 until Phase 6 is accepted and Phase 7 is explicitly authorized.
-- Next planned phase: Phase 7 — Vitest and Playwright (not authorized).
-- Implemented: internal base and React composition boundaries; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports, React, Next.js, and Angular presets; ESM package exports; build/test/package infrastructure.
-- Planned only: Vitest, Playwright, and DDD/architecture integrations.
+- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phases 1–6 (JavaScript, TypeScript, browser/Node/imports, React, Next.js, Angular).
+- Implemented and awaiting lead review: Phase 7 — Playwright; dedicated Vitest adapter deferred for Node compatibility.
+- Current authorization: Phase 7 implementation is complete and awaiting lead review. Do not begin Phase 8 until Phase 7 is accepted and Phase 8 is explicitly authorized.
+- Next planned phase: Phase 8 — Public package hardening (not authorized).
+- Implemented: internal base and React composition boundaries; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports, React, Next.js, Angular, and Playwright presets; ESM package exports; build/test/package infrastructure.
+- Planned/deferred: dedicated Vitest ESLint adapter (current official plugin requires Node >=22, while this package supports Node >=20.19); DDD/architecture integrations.
 
 The temporary npm package name is @scope/js-style-guide; it is provisional. The approved license is MIT.
 
@@ -59,7 +59,7 @@ Read the full implementation plan only for roadmap-wide work, a phase that cites
 ## Repository map
 
 - src/index.ts: root exports for core language capabilities.
-- src/presets/: public JavaScript and TypeScript language presets plus browser, Node, imports, React, and Next.js overlays.
+- src/presets/: public JavaScript and TypeScript language presets plus browser, Node, imports, React, Next.js, Angular, and Playwright overlays.
 - src/internal/: private implementation details. src/internal/base.ts is internal and must never become a package export such as /base.
 - src/types.ts: public Preset = Linter.Config[] type.
 - tests/: architecture and package contract tests.
@@ -102,11 +102,11 @@ Preserve these approved constraints unless the active task explicitly authorizes
 - Node engine floor is >=20.19.0; CI covers Node 20, 22, and 24.
 - The TypeScript peer >=4.8.4 <6.1.0 is the Phase 2 supported range; see ADRs 0006 and 0007.
 
-See ADRs 0001–0010 for rationale.
+See ADRs 0001–0012 for rationale.
 
 ## Public API rules
 
-The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, import validation, React, Next.js, and Angular are separate subpaths: `/browser`, `/node`, `/imports`, `/react`, `/next`, and `/angular`. Keep any future integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
+The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, import validation, React, Next.js, Angular, and Playwright are separate subpaths: `/browser`, `/node`, `/imports`, `/react`, `/next`, `/angular`, and `/playwright`. No `/vitest` export currently exists. Keep any integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
 
 Canonical consumer composition:
 
@@ -189,6 +189,6 @@ Use ADRs as the only decision-record system. Propose an ADR for public API, depe
 
 ## Agent onboarding
 
-A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 6 — Angular is implemented and awaiting lead review; Phase 7 — Vitest and Playwright is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
+A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 7 — Playwright is implemented with the dedicated Vitest adapter deferred and is awaiting lead review; Phase 8 — Public package hardening is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
 
 For deeper delegation examples and task templates, see `docs/agents/workflow.md`. It supplements AGENTS.md and cannot override it.

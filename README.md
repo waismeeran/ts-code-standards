@@ -4,7 +4,7 @@ A public JavaScript/TypeScript ESLint Flat Config package foundation. The curren
 
 ## Status
 
-Phases 0–5 are accepted. Phase 6 — Angular is implemented and awaiting lead review. The package remains unpublished and its name is provisional.
+Phases 0–6 are accepted. Phase 7 — Playwright is implemented with the Vitest adapter deferred and is awaiting lead review. The package remains unpublished and its name is provisional.
 
 ### Available now
 
@@ -19,6 +19,7 @@ Phases 0–5 are accepted. Phase 6 — Angular is implemented and awaiting lead 
 - An optional React overlay with stable Hooks correctness and recommended JSX accessibility rules, available through `/react`.
 - An optional Next.js overlay with internal React capability and Core Web Vitals rules, available through `/next`.
 - A standalone Angular preset with TypeScript and external/inline template rules, available through `/angular`.
+- An opt-in Playwright reliability overlay for conventional E2E files, available through `/playwright`.
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
 - CI configuration for Node 20, 22, and 24.
@@ -26,7 +27,7 @@ Phases 0–5 are accepted. Phase 6 — Angular is implemented and awaiting lead 
 
 ### Planned
 
-Later phases cover Vitest and Playwright.
+The dedicated Vitest adapter is deferred because the current stable official lint plugin requires Node >=22; the package intentionally retains Node >=20.19.0. Playwright is implemented independently. See the [Playwright preset guide](./docs/presets/playwright.md) and [Phase 7 report](./docs/phases/phase-7-testing-report.md).
 
 ## Composition contract
 
@@ -108,7 +109,7 @@ export default defineConfig(typescriptTypeChecked);
 ~~~
 
 See the [JavaScript preset guide](./docs/presets/javascript.md) and [TypeScript preset guide](./docs/presets/typescript.md) for rule policies and intentional omissions.
-See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), [imports](./docs/presets/imports.md), [React](./docs/presets/react.md), [Next.js](./docs/presets/next.md), and [Angular](./docs/presets/angular.md) guides.
+See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), [imports](./docs/presets/imports.md), [React](./docs/presets/react.md), [Next.js](./docs/presets/next.md), [Angular](./docs/presets/angular.md), and [Playwright](./docs/presets/playwright.md) guides.
 
 ## Development
 
@@ -140,7 +141,7 @@ The package is licensed under MIT. The package identifier shown here is provisio
 ~~~text
 src/                 TypeScript package source
   internal/          Private implementation details, including base
-  presets/           Public language presets and browser/Node/imports/React/Next/Angular overlays
+  presets/           Public language presets and browser/Node/imports/React/Next/Angular/Playwright overlays
 tests/               Package architecture tests
 scripts/             Build cleanup and tarball consumer validation
 docs/adr/             Accepted architecture decision records
