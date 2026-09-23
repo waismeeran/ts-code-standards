@@ -12,12 +12,12 @@ The package targets public open-source quality through explicit APIs, compatibil
 
 Update this section when a phase is formally accepted or a new phase is authorized.
 
-- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets; Phase 3 browser, Node, and imports (accepted); Phase 4 React (accepted).
-- Implemented and awaiting lead review: Phase 5 — Next.js.
-- Current authorization: Phase 5 implementation is complete; do not begin Phase 6 until Phase 5 receives lead acceptance and Phase 6 is explicitly authorized.
-- Next planned phase: Phase 6 — Angular (not authorized).
-- Implemented: internal base and React composition boundaries; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports, React, and Next.js overlays; ESM package exports; build/test/package infrastructure.
-- Planned only: Angular, Vitest, Playwright, and DDD/architecture integrations.
+- Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phase 1 JavaScript preset; Phase 2 TypeScript presets; Phase 3 browser, Node, and imports (accepted); Phase 4 React (accepted); Phase 5 Next.js (accepted).
+- Implemented and awaiting lead review: Phase 6 — Angular.
+- Current authorization: Phase 6 implementation is complete and awaiting lead review. Do not begin Phase 7 until Phase 6 is accepted and Phase 7 is explicitly authorized.
+- Next planned phase: Phase 7 — Vitest and Playwright (not authorized).
+- Implemented: internal base and React composition boundaries; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports, React, Next.js, and Angular presets; ESM package exports; build/test/package infrastructure.
+- Planned only: Vitest, Playwright, and DDD/architecture integrations.
 
 The temporary npm package name is @scope/js-style-guide; it is provisional. The approved license is MIT.
 
@@ -106,7 +106,7 @@ See ADRs 0001–0010 for rationale.
 
 ## Public API rules
 
-The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, import validation, React, and Next.js are separate subpaths: `/browser`, `/node`, `/imports`, `/react`, and `/next`. Keep any future integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
+The dependency-safe root exports JavaScript plus the `Preset` type. TypeScript presets are dedicated subpaths: `/typescript` and `/typescript-type-checked`. Browser, Node, import validation, React, Next.js, and Angular are separate subpaths: `/browser`, `/node`, `/imports`, `/react`, `/next`, and `/angular`. Keep any future integration with additional peers/tooling behind a subpath; do not eagerly re-export it from root.
 
 Canonical consumer composition:
 
@@ -189,6 +189,6 @@ Use ADRs as the only decision-record system. Propose an ADR for public API, depe
 
 ## Agent onboarding
 
-A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 5 — Next.js is implemented and awaiting lead review; Phase 6 — Angular is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
+A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 6 — Angular is implemented and awaiting lead review; Phase 7 — Vitest and Playwright is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
 
 For deeper delegation examples and task templates, see `docs/agents/workflow.md`. It supplements AGENTS.md and cannot override it.

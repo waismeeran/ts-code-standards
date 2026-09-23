@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 
 import * as root from "@scope/js-style-guide";
 import browser from "@scope/js-style-guide/browser";
+import angular from "@scope/js-style-guide/angular";
 import imports from "@scope/js-style-guide/imports";
 import javascript from "@scope/js-style-guide/javascript";
 import next from "@scope/js-style-guide/next";
@@ -25,6 +26,7 @@ const publicPresets = {
   react,
   typescript,
   typescriptTypeChecked,
+  angular,
 };
 
 const javascriptLinter = new ESLint({
@@ -69,6 +71,10 @@ const typeCheckedNextLinter = new ESLint({
   }),
   overrideConfigFile: true,
 });
+const angularLinter = new ESLint({
+  overrideConfig: angular,
+  overrideConfigFile: true,
+});
 
 async function lintMessages(code, filePath) {
   const [result] = await javascriptLinter.lintText(code, { filePath });
@@ -95,6 +101,83 @@ test("public preset subpaths resolve to typed arrays", () => {
   assert.ok(next.length > react.length);
   assert.ok(typescript.length > 0);
   assert.ok(typescriptTypeChecked.length > typescript.length);
+  assert.ok(angular.length > typescript.length);
+});
+
+test("Angular owns the TypeScript baseline and scopes template tooling without runtime globals", async () => {
+  const tsConfig = await angularLinter.calculateConfigForFile("src/app.component.ts");
+  assert.equal(tsConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(tsConfig.languageOptions.parserOptions?.projectService, undefined);
+  assert.ok(tsConfig.plugins["@typescript-eslint"]);
+  assert.ok(tsConfig.plugins["@angular-eslint"]);
+  assert.ok(!tsConfig.plugins["@angular-eslint/template"]);
+  for (const name of ["window", "document", "navigator", "process"]) {
+    assert.ok(!(name in (tsConfig.languageOptions.globals ?? {})), name);
+  }
+
+  const htmlConfig = await angularLinter.calculateConfigForFile("src/external.component.html");
+  assert.equal(htmlConfig.languageOptions.parser?.meta?.name, "angular-eslint/template-parser");
+  assert.ok(htmlConfig.plugins["@angular-eslint/template"]);
+  assert.ok(!htmlConfig.plugins["@typescript-eslint"]);
+  assert.equal(htmlConfig.languageOptions.parserOptions?.projectService, undefined);
+});
+
+test("Angular lints recommended TypeScript rules plus external and inline modern templates", async () => {
+  const [componentResult, externalTemplateResult] = await angularLinter.lintFiles([
+    resolve("tests/fixtures/angular-project/src/external.component.ts"),
+    resolve("tests/fixtures/angular-project/src/external.component.html"),
+  ]);
+  assert.ok(componentResult.messages.some((message) => message.ruleId === "@angular-eslint/no-empty-lifecycle-method"));
+  assert.ok(externalTemplateResult.messages.some((message) => message.ruleId === "@angular-eslint/template/alt-text"));
+
+  const [inlineResult] = await angularLinter.lintFiles([
+    resolve("tests/fixtures/angular-project/src/app.component.ts"),
+  ]);
+  assert.ok(inlineResult.messages.some((message) => message.ruleId === "@angular-eslint/template/alt-text"));
+  assert.ok(!inlineResult.messages.some((message) => message.fatal));
+  assert.ok(!inlineResult.messages.some((message) => message.ruleId === "@angular-eslint/template/prefer-control-flow"));
+});
+
+test("Angular composes with browser, imports, and optional typed Project Service", async () => {
+  const angularBrowser = new ESLint({
+    overrideConfig: defineConfig(angular, browser),
+    overrideConfigFile: true,
+  });
+  const angularNode = new ESLint({
+    overrideConfig: defineConfig(angular, node),
+    overrideConfigFile: true,
+  });
+  const noBrowserConfig = await angularLinter.calculateConfigForFile("src/app.component.ts");
+  const browserConfig = await angularBrowser.calculateConfigForFile("src/app.component.ts");
+  const nodeConfig = await angularNode.calculateConfigForFile("src/app.component.ts");
+  assert.ok(!("window" in (noBrowserConfig.languageOptions.globals ?? {})));
+  assert.ok("window" in browserConfig.languageOptions.globals);
+  assert.ok("process" in nodeConfig.languageOptions.globals);
+  assert.ok(!("window" in nodeConfig.languageOptions.globals));
+  assert.ok(browserConfig.plugins["@angular-eslint"]);
+
+  const angularImports = new ESLint({
+    overrideConfig: defineConfig(angular, imports),
+    overrideConfigFile: true,
+  });
+  const importsConfig = await angularImports.calculateConfigForFile("src/app.component.ts");
+  assert.ok(importsConfig.plugins["@angular-eslint"]);
+  assert.ok(importsConfig.plugins["import-x"]);
+  assert.equal(Object.keys(importsConfig.plugins).filter((name) => name === "@angular-eslint").length, 1);
+
+  const angularTypeChecked = new ESLint({
+    overrideConfig: defineConfig(angular, typescriptTypeChecked),
+    overrideConfigFile: true,
+  });
+  const typedConfig = await angularTypeChecked.calculateConfigForFile(
+    resolve("tests/fixtures/angular-project/src/service.ts"),
+  );
+  assert.equal(typedConfig.languageOptions.parser?.meta?.name, "typescript-eslint/parser");
+  assert.equal(typedConfig.languageOptions.parserOptions?.projectService, true);
+  const [typedAngularResult] = await angularTypeChecked.lintFiles([
+    resolve("tests/fixtures/angular-project/src/external.component.ts"),
+  ]);
+  assert.ok(typedAngularResult.messages.some((message) => message.ruleId === "@angular-eslint/no-empty-lifecycle-method"));
 });
 
 test("Next owns React and Next.js rules without owning language or runtime globals", async () => {

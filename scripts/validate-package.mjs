@@ -20,6 +20,10 @@ const consumers = await Promise.all([
   mkdtemp(join(tmpdir(), "js-style-guide-next-typed-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-next-imports-consumer-")),
   mkdtemp(join(tmpdir(), "js-style-guide-next-browser-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-angular-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-angular-browser-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-angular-imports-consumer-")),
+  mkdtemp(join(tmpdir(), "js-style-guide-angular-typed-consumer-")),
 ]);
 
 function run(command, args, cwd) {
@@ -91,13 +95,17 @@ try {
   assert.ok(archiveListing.includes("package/docs/presets/imports.md"));
   assert.ok(archiveListing.includes("package/docs/presets/react.md"));
   assert.ok(archiveListing.includes("package/docs/presets/next.md"));
+  assert.ok(archiveListing.includes("package/docs/presets/angular.md"));
   assert.ok(archiveListing.includes("package/dist/presets/imports.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.d.ts"));
   assert.ok(archiveListing.includes("package/dist/presets/next.js"));
   assert.ok(archiveListing.includes("package/dist/presets/next.d.ts"));
+  assert.ok(archiveListing.includes("package/dist/presets/angular.js"));
+  assert.ok(archiveListing.includes("package/dist/presets/angular.d.ts"));
   assert.ok(archiveListing.includes("package/docs/adr/0009-react-linting-strategy.md"));
   assert.ok(archiveListing.includes("package/docs/adr/0010-next-linting-composition.md"));
+  assert.ok(archiveListing.includes("package/docs/adr/0011-angular-linting-strategy.md"));
   assert.ok(!archiveListing.includes("package/AGENTS.md"));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/tests/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/src/")));
@@ -123,6 +131,10 @@ try {
     nextTypedConsumer,
     nextImportsConsumer,
     nextBrowserConsumer,
+    angularConsumer,
+    angularBrowserConsumer,
+    angularImportsConsumer,
+    angularTypedConsumer,
   ] = consumers;
 
   await writeConsumer(javascriptConsumer, "javascript-consumer", tarballPath, undefined, true);
@@ -173,6 +185,12 @@ try {
     'await import("@next/eslint-plugin-next").then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.equal(nextToolingAbsent.status, 0, "safe non-Next consumer should not install Next tooling");
+  const angularToolingAbsent = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'for (const name of ["@angular-eslint/eslint-plugin", "@angular-eslint/eslint-plugin-template", "@angular-eslint/template-parser", "@angular-eslint/bundled-angular-compiler", "@angular/compiler", "@angular/core"]) await import(name).then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.equal(angularToolingAbsent.status, 0, "safe non-Angular consumer should not install Angular tooling or runtime");
 
   const missingTypeScriptPeer = spawnSync("node", [
     "--input-type=module",
@@ -450,7 +468,112 @@ try {
   ], { cwd: nextJsConsumer, encoding: "utf8" });
   assert.equal(nextRuntimeAbsent.status, 0, "Next lint consumers do not need the Next runtime package");
 
-  console.log("Packed JavaScript/browser/Node/imports, React, and all five Next compositions passed; non-framework root isolation passed.");
+  const angularTooling = {
+    "@angular-eslint/eslint-plugin": "21.4.0",
+    "@angular-eslint/eslint-plugin-template": "21.4.0",
+    "@angular-eslint/template-parser": "21.4.0",
+  };
+  const angularConsumers = [
+    [angularConsumer, "packed-angular", "application"],
+    [angularBrowserConsumer, "packed-angular-browser", "browser"],
+    [angularImportsConsumer, "packed-angular-imports", "imports"],
+    [angularTypedConsumer, "packed-angular-typed", "typed"],
+  ];
+  for (const [directory, name, mode] of angularConsumers) {
+    const dependencies = { ...angularTooling };
+    if (mode === "typed") dependencies["@types/node"] = "26.6.2";
+    await writeConsumer(directory, name, tarballPath, "5.9.3", false, dependencies);
+    await mkdir(join(directory, "src"), { recursive: true });
+    const languageImport = mode === "typed"
+      ? 'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";'
+      : "";
+    const overlayImport = mode === "browser"
+      ? 'import browser from "@scope/js-style-guide/browser";'
+      : mode === "imports"
+        ? 'import imports from "@scope/js-style-guide/imports";'
+        : "";
+    const overlays = mode === "browser" ? ", browser" : mode === "imports" ? ", imports" : "";
+    const languagePreset = mode === "typed" ? "angular, typescriptTypeChecked" : `angular${overlays}`;
+    await writeFile(join(directory, "eslint.config.js"), [
+      'import { defineConfig } from "eslint/config";',
+      'import angular from "@scope/js-style-guide/angular";',
+      languageImport,
+      overlayImport,
+      mode === "imports"
+        ? 'export default defineConfig(angular, { files: ["src/imports.ts"], extends: [imports] });'
+        : `export default defineConfig(${languagePreset});`,
+      "",
+    ].filter(Boolean).join("\n"));
+
+    await writeFile(join(directory, "tsconfig.json"), JSON.stringify({
+      compilerOptions: {
+        target: "ES2022",
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        strict: true,
+        noEmit: true,
+        experimentalDecorators: true,
+        skipLibCheck: true,
+      },
+      include: ["src/**/*.ts"],
+    }, null, 2));
+    await writeFile(join(directory, "src/app.component.ts"), [
+      'import { Component } from "@angular/core";',
+      "@Component({ selector: 'sample-app', template: `@if (ready) { <img src='inline.png'> }` })",
+      "export class AppComponent { ready = true; ngOnInit(): void {} }",
+      mode === "typed" ? "export async function later(): Promise<void> {}\nlater();" : "",
+      "",
+    ].join("\n"));
+    await writeFile(join(directory, "src/app.component.html"), "@for (item of items; track item.id) { <img [src]='item.src'> }\n");
+    if (mode === "browser") {
+      await writeFile(join(directory, "src/client.ts"), "export const locationHref = window.location.href;\n");
+    }
+    if (mode === "imports") {
+      await writeFile(join(directory, "src/value.ts"), "export const value = 42;\n");
+      await writeFile(join(directory, "src/imports.ts"), 'import { value } from "./value.js";\nexport { value };\n');
+    }
+
+    const lintPaths = mode === "browser"
+      ? ["src/app.component.ts", "src/app.component.html", "src/client.ts"]
+      : mode === "imports"
+        ? ["src/app.component.ts", "src/app.component.html", "src/imports.ts"]
+        : ["src/app.component.ts", "src/app.component.html"];
+    const lintResult = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "--format", "json", ...lintPaths], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+    assert.notEqual(lintResult.status, 0, `${name} should report intentional Angular violations`);
+    const results = JSON.parse(lintResult.stdout);
+    const ruleIds = results.flatMap(({ messages }) => messages.map(({ ruleId }) => ruleId));
+    assert.ok(ruleIds.includes("@angular-eslint/no-empty-lifecycle-method"), `${name}: Angular TS rule`);
+    assert.ok(ruleIds.includes("@angular-eslint/template/alt-text"), `${name}: accessibility in inline template`);
+    assert.ok(ruleIds.includes("@angular-eslint/template/prefer-control-flow") === false, `${name}: modern template control flow`);
+    if (mode === "browser") {
+      const config = await readFile(join(directory, "eslint.config.js"), "utf8");
+      assert.match(config, /browser/);
+      const effective = spawnSync("node", ["--input-type=module", "-e", [
+        'import { ESLint } from "eslint";',
+        'const eslint = new ESLint({ overrideConfigFile: "eslint.config.js" });',
+        'const config = await eslint.calculateConfigForFile("src/client.ts");',
+        'if (!("window" in config.languageOptions.globals) || "process" in config.languageOptions.globals) process.exit(1);',
+      ].join("\n")], { cwd: directory, encoding: "utf8" });
+      assert.equal(effective.status, 0, `${name}: browser globals are explicit`);
+    }
+    if (mode === "imports") {
+      const importsResult = results.find(({ filePath }) => filePath.endsWith("/src/imports.ts"));
+      assert.ok(importsResult, `${name}: imports fixture was linted`);
+      assert.ok(!importsResult.messages.some(({ ruleId }) => ruleId === "import-x/no-unresolved"), `${name}: relative import resolves`);
+    }
+    if (mode === "typed") assert.ok(ruleIds.includes("@typescript-eslint/no-floating-promises"), `${name}: Project Service typed rule`);
+    const runtimeAbsent = spawnSync("node", [
+      "--input-type=module",
+      "-e",
+      'for (const name of ["@angular/core", "@angular/compiler"]) await import(name).then(() => process.exit(1), (error) => { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; });',
+    ], { cwd: directory, encoding: "utf8" });
+    assert.equal(runtimeAbsent.status, 0, `${name}: lint configuration does not require Angular runtime packages`);
+  }
+
+  console.log("Packed JavaScript/browser/Node/imports, React, Next, and Angular compositions passed; non-framework root isolation passed.");
 } finally {
   await Promise.all([
     rm(packDirectory, { recursive: true, force: true }),
