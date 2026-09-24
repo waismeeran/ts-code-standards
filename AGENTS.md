@@ -14,9 +14,10 @@ Update this section when a phase is formally accepted or a new phase is authoriz
 
 - Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phases 1–6 (JavaScript, TypeScript, browser/Node/imports, React, Next.js, Angular).
 - Completed and accepted: Phase 7 — Playwright; dedicated Vitest adapter deferred for Node compatibility.
-- Implemented and awaiting lead review: Phase 8 — Public package hardening.
-- Current authorization: Phase 8 is complete and ready for lead review. Do not begin Phase 9 or Phase 10 until explicitly authorized.
-- Next planned phase: Phase 9 — CI and public release (not authorized).
+- Completed and accepted: Phase 8 — Public package hardening.
+- Completed and accepted: Phase 9A — CI and public release preparation. Phase 9B external release execution is not authorized; do not create a remote, push, tag, create a GitHub Release, authenticate to npm, configure external trusted publishing, or publish.
+- Current authorization: Phase 9A is approved. Phase 9B requires the owner decisions listed in the release documentation and separate explicit authorization. Do not begin Phase 9B or Phase 10 before then.
+- Next planned step: obtain owner release-identity decisions and Phase 9B authorization.
 - Implemented: internal base and React composition boundaries; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports, React, Next.js, Angular, and Playwright presets; ESM package exports; build/test/package infrastructure.
 - Planned/deferred: dedicated Vitest ESLint adapter (current official plugin requires Node >=22, while this package supports Node >=20.19); DDD/architecture integrations.
 
@@ -73,6 +74,7 @@ Read the full implementation plan only for roadmap-wide work, a phase that cites
 - docs/planning/: future implementation planning and roadmap.
 - docs/presets/: consumer-facing preset rationale and guidance.
 - .github/workflows/ci.yml: public Node compatibility CI matrix.
+- .github/workflows/release-verification.yml: manual, read-only release candidate verification; never publishes.
 - `docs/planning/implementation-plan.md`: planning/history document, not a blanket authorization to implement future phases.
 - `docs/phases/phase-0a-compatibility-report.md` and `docs/phases/phase-0b-foundation-report.md`: historical evidence; later lead decisions and Accepted ADRs take precedence.
 - `AGENTS.md` and internal planning, audit, phase, and agent workflow materials are repository-only and excluded from the npm tarball. JavaScript preset rationale under `docs/presets/` is intentionally included.
@@ -135,6 +137,7 @@ Run commands from the repository root. Use npm and the committed npm lockfile.
 | Packed tarball and clean consumer | npm run test:package |
 | Tarball contents preview | npm pack --dry-run |
 | Full project quality gate | npm run check |
+| Release metadata/reference readiness (no publishing) | npm run release:check [-- --tag vX.Y.Z] |
 
 Do not invent alternate quality commands when the relevant script exists.
 

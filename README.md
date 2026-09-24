@@ -4,7 +4,7 @@ A public JavaScript/TypeScript ESLint Flat Config package foundation. The curren
 
 ## Status
 
-Phases 0–7 are accepted. The dedicated Vitest adapter is deferred for Node compatibility. Phase 8 public package hardening is implemented and awaiting lead review; Phase 9 is not yet authorized. The package remains unpublished and its name is provisional.
+Phases 0–7 are accepted. Phase 8 public package hardening and Phase 9A release preparation are approved. External release execution (Phase 9B) is not authorized and awaits owner identity decisions. The package remains unpublished and its name is provisional.
 
 ### Available now
 
@@ -22,7 +22,8 @@ Phases 0–7 are accepted. The dedicated Vitest adapter is deferred for Node com
 - An opt-in Playwright reliability overlay for conventional E2E files, available through `/playwright`.
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
-- CI configuration for Node 20, 22, and 24.
+- CI configuration for Node 20.19.0, 22, and 24.
+- A local release-readiness check and read-only manual release-verification workflow; no publisher is enabled.
 - MIT license.
 
 ### Planned

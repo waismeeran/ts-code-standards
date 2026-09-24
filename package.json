@@ -128,6 +128,7 @@
     "test": "node --test",
     "test:package": "node scripts/validate-package.mjs",
     "pack:dry": "npm pack --dry-run",
+    "release:check": "node scripts/release-readiness.mjs",
     "check": "npm run typecheck && npm run build && npm run lint && npm test && npm run test:package && npm run pack:dry"
   },
   "dependencies": {

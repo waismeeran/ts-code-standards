@@ -1,0 +1,52 @@
+name: Release verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Expected release reference, for example v1.2.3
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Require the default release branch
+        env:
+          SELECTED_REF: ${{ github.ref }}
+        run: |
+          if [ "$SELECTED_REF" != "refs/heads/main" ]; then
+            echo "Release verification must run from refs/heads/main; got $SELECTED_REF" >&2
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run canonical quality and package gate
+        run: npm run check
+
+      - name: Check release metadata and reference
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: npm run release:check -- --tag "$RELEASE_TAG"
