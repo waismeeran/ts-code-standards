@@ -9,12 +9,12 @@ const reactTsxFiles = ["**/*.tsx"];
 export const reactCapability: Preset = [
   {
     ...reactHooks.configs.flat.recommended,
-    name: "@scope/js-style-guide/react/hooks",
+    name: "@waismeeran/ts-code-standards/react/hooks",
     files: reactSourceFiles,
   },
   {
     ...jsxA11yX.configs.recommended,
-    name: "@scope/js-style-guide/react/jsx-accessibility-javascript",
+    name: "@waismeeran/ts-code-standards/react/jsx-accessibility-javascript",
     files: reactJsFiles,
     languageOptions: {
       ...jsxA11yX.configs.recommended.languageOptions,
@@ -29,7 +29,7 @@ export const reactCapability: Preset = [
   },
   {
     ...jsxA11yX.configs.recommended,
-    name: "@scope/js-style-guide/react/jsx-accessibility-typescript",
+    name: "@waismeeran/ts-code-standards/react/jsx-accessibility-typescript",
     files: reactTsxFiles,
   },
 ];

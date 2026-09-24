@@ -6,17 +6,17 @@ import { defineConfig } from "eslint/config";
 import { ESLint } from "eslint";
 import { tmpdir } from "node:os";
 
-import * as root from "@scope/js-style-guide";
-import browser from "@scope/js-style-guide/browser";
-import angular from "@scope/js-style-guide/angular";
-import imports from "@scope/js-style-guide/imports";
-import javascript from "@scope/js-style-guide/javascript";
-import next from "@scope/js-style-guide/next";
-import node from "@scope/js-style-guide/node";
-import playwright from "@scope/js-style-guide/playwright";
-import react from "@scope/js-style-guide/react";
-import typescript from "@scope/js-style-guide/typescript";
-import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
+import * as root from "@waismeeran/ts-code-standards";
+import browser from "@waismeeran/ts-code-standards/browser";
+import angular from "@waismeeran/ts-code-standards/angular";
+import imports from "@waismeeran/ts-code-standards/imports";
+import javascript from "@waismeeran/ts-code-standards/javascript";
+import next from "@waismeeran/ts-code-standards/next";
+import node from "@waismeeran/ts-code-standards/node";
+import playwright from "@waismeeran/ts-code-standards/playwright";
+import react from "@waismeeran/ts-code-standards/react";
+import typescript from "@waismeeran/ts-code-standards/typescript";
+import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";
 import { join, resolve } from "node:path";
 
 const publicPresets = {
@@ -359,9 +359,9 @@ test("Next composes with typed Project Service, imports, Node, and redundant Rea
   const aliasScript = [
     'import { ESLint } from "eslint";',
     'import { defineConfig } from "eslint/config";',
-    'import typescript from "@scope/js-style-guide/typescript";',
-    'import next from "@scope/js-style-guide/next";',
-    'import imports from "@scope/js-style-guide/imports";',
+    'import typescript from "@waismeeran/ts-code-standards/typescript";',
+    'import next from "@waismeeran/ts-code-standards/next";',
+    'import imports from "@waismeeran/ts-code-standards/imports";',
     'const linter = new ESLint({ overrideConfig: defineConfig(typescript, next, imports), overrideConfigFile: true });',
     'const [result] = await linter.lintFiles(["app/page.tsx"]);',
     'process.stdout.write(JSON.stringify(result.messages.map(({ruleId}) => ruleId)));',
@@ -741,8 +741,8 @@ test("imports resolves TypeScript path aliases and allows the preset's separate 
   const script = [
     'import { ESLint } from "eslint";',
     'import { defineConfig } from "eslint/config";',
-    'import typescript from "@scope/js-style-guide/typescript";',
-    'import imports from "@scope/js-style-guide/imports";',
+    'import typescript from "@waismeeran/ts-code-standards/typescript";',
+    'import imports from "@waismeeran/ts-code-standards/imports";',
     'const linter = new ESLint({ overrideConfig: defineConfig(typescript, imports), overrideConfigFile: true });',
     'const files = ["src/valid-alias.ts", "src/duplicate-alias.ts", "src/unresolved-alias.ts"];',
     'const results = await Promise.all(files.map((file) => linter.lintFiles([file])));',
@@ -808,7 +808,7 @@ test("imports resolves public package exports and rejects an unexported package 
 test("the internal base is not a package export", async () => {
   // Verify the package export map rejects this path without import-rule noise.
   // eslint-disable-next-line import-x/no-unresolved -- expected private subpath
-  const loadInternalBase = () => import("@scope/js-style-guide/base");
+  const loadInternalBase = () => import("@waismeeran/ts-code-standards/base");
   await assert.rejects(
     loadInternalBase(),
     (error) => error?.code === "ERR_PACKAGE_PATH_NOT_EXPORTED",

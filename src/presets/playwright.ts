@@ -15,7 +15,7 @@ const disabledRuntimeGlobals = Object.fromEntries(
 
 const playwright: Preset = [
   {
-    name: "@scope/js-style-guide/playwright/recommended",
+    name: "@waismeeran/ts-code-standards/playwright/recommended",
     files: playwrightFiles,
     ...recommended,
     languageOptions: {

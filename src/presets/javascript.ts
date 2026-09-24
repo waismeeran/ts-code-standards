@@ -8,7 +8,7 @@ const javascript: Preset = [
   ...base,
   {
     ...js.configs.recommended,
-    name: "@scope/js-style-guide/javascript",
+    name: "@waismeeran/ts-code-standards/javascript",
     files: javascriptFiles,
     rules: {
       ...js.configs.recommended.rules,
@@ -16,7 +16,7 @@ const javascript: Preset = [
     },
   },
   {
-    name: "@scope/js-style-guide/javascript/jsx-syntax",
+    name: "@waismeeran/ts-code-standards/javascript/jsx-syntax",
     files: ["**/*.jsx"],
     languageOptions: {
       parserOptions: {

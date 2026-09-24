@@ -6,7 +6,7 @@ const browserFiles = [
 ];
 
 const browser: Preset = [{
-  name: "@scope/js-style-guide/browser/globals",
+  name: "@waismeeran/ts-code-standards/browser/globals",
   files: browserFiles,
   languageOptions: {
     globals: globals.browser,

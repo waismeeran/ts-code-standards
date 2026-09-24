@@ -15,7 +15,7 @@ const angularTemplateProcessor = angularTemplatePlugin.processors[
 const angularPreset: Preset = [
   ...typescriptPreset,
   {
-    name: "@scope/js-style-guide/angular/typescript",
+    name: "@waismeeran/ts-code-standards/angular/typescript",
     files: angularTypeScriptFiles,
     plugins: {
       "@angular-eslint": angularPlugin as unknown as FlatConfigPlugin,
@@ -24,7 +24,7 @@ const angularPreset: Preset = [
     rules: angularPlugin.configs.recommended.rules as Linter.RulesRecord,
   },
   {
-    name: "@scope/js-style-guide/angular/templates",
+    name: "@waismeeran/ts-code-standards/angular/templates",
     files: angularTemplateFiles,
     languageOptions: {
       parser: angularTemplateParser,

@@ -8,7 +8,7 @@ const extensions = [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".mts", ".cts"
 
 const imports: Preset = [
   {
-    name: "@scope/js-style-guide/imports/plugin",
+    name: "@waismeeran/ts-code-standards/imports/plugin",
     files: javascriptFiles,
     plugins: {
       "import-x": importX,
@@ -20,7 +20,7 @@ const imports: Preset = [
     },
   },
   {
-    name: "@scope/js-style-guide/imports/typescript",
+    name: "@waismeeran/ts-code-standards/imports/typescript",
     files: typescriptFiles,
     plugins: {
       "import-x": importX,
@@ -31,7 +31,7 @@ const imports: Preset = [
     },
   },
   {
-    name: "@scope/js-style-guide/imports/javascript-resolution",
+    name: "@waismeeran/ts-code-standards/imports/javascript-resolution",
     files: javascriptFiles,
     settings: {
       "import-x/extensions": extensions,
@@ -39,7 +39,7 @@ const imports: Preset = [
     },
   },
   {
-    name: "@scope/js-style-guide/imports/typescript-resolution",
+    name: "@waismeeran/ts-code-standards/imports/typescript-resolution",
     files: typescriptFiles,
     settings: {
       "import-x/extensions": extensions,

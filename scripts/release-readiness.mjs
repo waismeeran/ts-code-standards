@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 const PLACEHOLDER_NAME = "@scope/js-style-guide";
 const PLACEHOLDER_VERSION = "0.0.0-foundation";
+const APPROVED_PACKAGE_NAME = "@waismeeran/ts-code-standards";
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
 export function getReleaseReadinessIssues(packageMetadata, { tag } = {}) {
@@ -11,6 +12,10 @@ export function getReleaseReadinessIssues(packageMetadata, { tag } = {}) {
 
   if (!packageMetadata.name || packageMetadata.name === PLACEHOLDER_NAME) {
     issues.push(`Choose the final npm package name (current placeholder: ${PLACEHOLDER_NAME}).`);
+  } else if (!/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(packageMetadata.name)) {
+    issues.push(`Package name ${packageMetadata.name} is not a valid scoped npm package name.`);
+  } else if (packageMetadata.name !== APPROVED_PACKAGE_NAME) {
+    issues.push(`Package name must match the owner-approved identity ${APPROVED_PACKAGE_NAME}.`);
   }
 
   if (!packageMetadata.version || packageMetadata.version === PLACEHOLDER_VERSION) {
@@ -19,8 +24,8 @@ export function getReleaseReadinessIssues(packageMetadata, { tag } = {}) {
     issues.push(`Package version ${packageMetadata.version} is not a valid SemVer version.`);
   }
 
-  if (!hasMetadataValue(packageMetadata.repository)) {
-    issues.push("Add the canonical repository metadata after the repository identity is approved.");
+  if (!hasMetadataValue(packageMetadata.repository, { allowGitHttps: true })) {
+    issues.push("Add the canonical HTTPS repository metadata after the repository identity is approved.");
   }
 
   if (!hasMetadataValue(packageMetadata.homepage)) {
@@ -50,12 +55,22 @@ function isValidSemver(version) {
   return prereleaseIdentifiers.every((identifier) => !/^\d+$/.test(identifier) || identifier === "0" || !identifier.startsWith("0"));
 }
 
-function hasMetadataValue(value) {
-  if (typeof value === "string") return value.trim().length > 0;
+function hasMetadataValue(value, { allowGitHttps = false } = {}) {
+  if (typeof value === "string") return isWebUrl(value, { allowGitHttps });
   if (value && typeof value === "object") {
-    return typeof value.url === "string" && value.url.trim().length > 0;
+    return isWebUrl(value.url, { allowGitHttps });
   }
   return false;
+}
+
+function isWebUrl(value, { allowGitHttps = false } = {}) {
+  if (typeof value !== "string") return false;
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "https:" || (allowGitHttps && protocol === "git+https:");
+  } catch {
+    return false;
+  }
 }
 
 async function main() {

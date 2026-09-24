@@ -1,27 +1,37 @@
 {
-  "name": "@scope/js-style-guide",
-  "version": "0.0.0-foundation",
-  "description": "A modular, ESM-first Flat Config foundation for JavaScript and TypeScript projects.",
+  "name": "@waismeeran/ts-code-standards",
+  "version": "0.1.0",
+  "description": "JavaScript and TypeScript code standards for modern web applications.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/waismeeran/ts-code-standards.git"
+  },
+  "homepage": "https://github.com/waismeeran/ts-code-standards#readme",
+  "bugs": {
+    "url": "https://github.com/waismeeran/ts-code-standards/issues"
+  },
+  "keywords": [
+    "eslint",
+    "eslint-config",
+    "javascript",
+    "typescript",
+    "flat-config",
+    "react",
+    "nextjs",
+    "angular",
+    "nodejs",
+    "playwright",
+    "linting",
+    "code-quality"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "files": [
     "dist",
-    "docs/adr",
-    "docs/presets/javascript.md",
-    "docs/presets/typescript.md",
-    "docs/presets/browser.md",
-    "docs/presets/node.md",
-    "docs/presets/imports.md",
-    "docs/presets/react.md",
-    "docs/presets/next.md",
-    "docs/presets/angular.md",
-    "docs/presets/playwright.md",
-    "docs/compatibility.md",
     "README.md",
-    "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
   ],
   "exports": {

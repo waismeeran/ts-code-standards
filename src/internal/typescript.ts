@@ -23,7 +23,7 @@ function scopeUpstreamConfigs(configs: readonly unknown[]): Preset {
 const typescriptBaseline: Preset = [
   ...scopeUpstreamConfigs(tseslint.configs.recommended),
   {
-    name: "@scope/js-style-guide/typescript/policy",
+    name: "@waismeeran/ts-code-standards/typescript/policy",
     files: typescriptFiles,
     rules: {
       "prefer-const": "error",

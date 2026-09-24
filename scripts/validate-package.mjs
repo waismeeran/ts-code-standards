@@ -5,26 +5,26 @@ import { tmpdir } from "node:os";
 import { join, posix, resolve } from "node:path";
 
 const root = resolve(".");
-const packDirectory = await mkdtemp(join(tmpdir(), "js-style-guide-pack-"));
+const packDirectory = await mkdtemp(join(tmpdir(), "ts-code-standards-pack-"));
 const consumers = await Promise.all([
-  mkdtemp(join(tmpdir(), "js-style-guide-js-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-playwright-js-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-ts-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-typed-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-react-js-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-react-ts-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-react-typed-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-react-browser-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-react-imports-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-next-js-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-next-ts-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-next-typed-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-next-imports-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-next-browser-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-angular-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-angular-browser-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-angular-imports-consumer-")),
-  mkdtemp(join(tmpdir(), "js-style-guide-angular-typed-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-js-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-playwright-js-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-ts-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-typed-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-react-js-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-react-ts-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-react-typed-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-react-browser-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-react-imports-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-next-js-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-next-ts-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-next-typed-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-next-imports-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-next-browser-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-angular-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-angular-browser-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-angular-imports-consumer-")),
+  mkdtemp(join(tmpdir(), "ts-code-standards-angular-typed-consumer-")),
 ]);
 
 function run(command, args, cwd, { rejectPeerWarnings = false } = {}) {
@@ -51,7 +51,7 @@ function run(command, args, cwd, { rejectPeerWarnings = false } = {}) {
 
 async function writeConsumer(directory, name, tarballPath, typescriptVersion, omitPeers = false, extraDependencies = {}) {
   const dependencies = {
-    "@scope/js-style-guide": `file:${tarballPath}`,
+    "@waismeeran/ts-code-standards": `file:${tarballPath}`,
     eslint: "10.11.0",
     ...extraDependencies,
   };
@@ -109,18 +109,7 @@ try {
   assert.ok(archiveListing.includes("package/dist/index.js"));
   assert.ok(archiveListing.includes("package/dist/index.d.ts"));
   assert.ok(archiveListing.includes("package/README.md"));
-  assert.ok(archiveListing.includes("package/docs/contributing/CONTRIBUTING.md"));
   assert.ok(archiveListing.includes("package/LICENSE"));
-  assert.ok(archiveListing.includes("package/docs/adr/0001-flat-config-and-composition.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/javascript.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/typescript.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/browser.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/node.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/imports.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/react.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/next.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/angular.md"));
-  assert.ok(archiveListing.includes("package/docs/presets/playwright.md"));
   assert.ok(archiveListing.includes("package/dist/presets/imports.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.js"));
   assert.ok(archiveListing.includes("package/dist/presets/react.d.ts"));
@@ -130,19 +119,12 @@ try {
   assert.ok(archiveListing.includes("package/dist/presets/angular.d.ts"));
   assert.ok(archiveListing.includes("package/dist/presets/playwright.js"));
   assert.ok(archiveListing.includes("package/dist/presets/playwright.d.ts"));
-  assert.ok(archiveListing.includes("package/docs/adr/0009-react-linting-strategy.md"));
-  assert.ok(archiveListing.includes("package/docs/adr/0010-next-linting-composition.md"));
-  assert.ok(archiveListing.includes("package/docs/adr/0011-angular-linting-strategy.md"));
-  assert.ok(archiveListing.includes("package/docs/adr/0012-vitest-deferral-node-compatibility.md"));
+  assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/")), "local documentation is not distributed in the package");
   assert.ok(!archiveListing.includes("package/AGENTS.md"));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/tests/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/src/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/.github/")));
   assert.ok(!archiveListing.some((entry) => /(^|\/)(AGENTS\.md|CLAUDE\.md|copilot-instructions\.md)$/.test(entry)));
-  assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/agents/")));
-  assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/planning/")));
-  assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/phases/")));
-  assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/audits/")));
   assert.ok(!archiveListing.some((entry) => entry.includes("node_modules")));
   assert.ok(!archiveListing.some((entry) => /(^|\/)(\.DS_Store|Thumbs\.db|\.npmrc|\.env(?:\.|$))/.test(entry)));
   assert.ok(!archiveListing.some((entry) => /\.(?:map|tsbuildinfo)$/.test(entry)));
@@ -190,10 +172,10 @@ try {
   await writeConsumer(javascriptConsumer, "javascript-consumer", tarballPath, undefined, true);
   await writeFile(join(javascriptConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
-    'import browser from "@scope/js-style-guide/browser";',
-    'import imports from "@scope/js-style-guide/imports";',
-    'import { javascript } from "@scope/js-style-guide";',
-    'import node from "@scope/js-style-guide/node";',
+    'import browser from "@waismeeran/ts-code-standards/browser";',
+    'import imports from "@waismeeran/ts-code-standards/imports";',
+    'import { javascript } from "@waismeeran/ts-code-standards";',
+    'import node from "@waismeeran/ts-code-standards/node";',
     'export default defineConfig({ files: ["client*.js"], extends: [javascript, browser] },',
     '  { files: ["server.mjs"], extends: [javascript, node] },',
     '  { files: ["server.cjs"], extends: [javascript, node] },',
@@ -209,7 +191,7 @@ try {
   await writeFile(join(javascriptConsumer, "imports.js"), 'import { value } from "./import-target.js"; export { value };\n');
   await writeFile(join(javascriptConsumer, "invalid.js"), "let answer = 42; export { answer };\n");
   await writeFile(join(javascriptConsumer, "root-import.mjs"), [
-    'import * as root from "@scope/js-style-guide";',
+    'import * as root from "@waismeeran/ts-code-standards";',
     'if (!Array.isArray(root.javascript) || "typescript" in root || "typescriptTypeChecked" in root) process.exit(1);',
     "",
   ].join("\n"));
@@ -249,11 +231,11 @@ try {
   assert.equal(playwrightToolingAbsent.status, 0, "safe root consumer should not install Playwright tooling");
 
   const privateExports = [
-    "@scope/js-style-guide/vitest",
-    "@scope/js-style-guide/internal/react",
-    "@scope/js-style-guide/internal/base",
-    "@scope/js-style-guide/dist/internal/react",
-    "@scope/js-style-guide/src/presets/react",
+    "@waismeeran/ts-code-standards/vitest",
+    "@waismeeran/ts-code-standards/internal/react",
+    "@waismeeran/ts-code-standards/internal/base",
+    "@waismeeran/ts-code-standards/dist/internal/react",
+    "@waismeeran/ts-code-standards/src/presets/react",
   ];
   const privateExportCheck = spawnSync("node", [
     "--input-type=module",
@@ -263,14 +245,14 @@ try {
   assert.equal(privateExportCheck.status, 0, "Vitest and private implementation paths are not package exports");
   const commonJsCheck = spawnSync("node", [
     "-e",
-    'try { require("@scope/js-style-guide"); process.exit(1); } catch (error) { if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error; }',
+    'try { require("@waismeeran/ts-code-standards"); process.exit(1); } catch (error) { if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error; }',
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.equal(commonJsCheck.status, 0, "CommonJS consumers receive the ordinary unsupported-export error");
 
   const missingTypeScriptPeer = spawnSync("node", [
     "--input-type=module",
     "-e",
-    'await import("@scope/js-style-guide/typescript");',
+    'await import("@waismeeran/ts-code-standards/typescript");',
   ], {
     cwd: javascriptConsumer,
     encoding: "utf8",
@@ -282,7 +264,7 @@ try {
   const missingPlaywrightPeer = spawnSync("node", [
     "--input-type=module",
     "-e",
-    'await import("@scope/js-style-guide/playwright");',
+    'await import("@waismeeran/ts-code-standards/playwright");',
   ], {
     cwd: javascriptConsumer,
     encoding: "utf8",
@@ -292,14 +274,14 @@ try {
   const missingReactPeers = spawnSync("node", [
     "--input-type=module",
     "-e",
-    'await import("@scope/js-style-guide/react");',
+    'await import("@waismeeran/ts-code-standards/react");',
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.notEqual(missingReactPeers.status, 0, "the React subpath should require its optional lint tooling");
   assert.match(missingReactPeers.stderr, /eslint-plugin-react-hooks|eslint-plugin-jsx-a11y-x/);
   const missingAngularPeer = spawnSync("node", [
     "--input-type=module",
     "-e",
-    'await import("@scope/js-style-guide/angular");',
+    'await import("@waismeeran/ts-code-standards/angular");',
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.notEqual(missingAngularPeer.status, 0, "the Angular subpath should require its optional lint tooling");
   assert.match(missingAngularPeer.stderr, /@angular-eslint\/eslint-plugin|@angular-eslint\/eslint-plugin-template|@angular-eslint\/template-parser/);
@@ -325,8 +307,8 @@ try {
   await mkdir(join(playwrightJsConsumer, "src"));
   await writeFile(join(playwrightJsConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
-    'import javascript from "@scope/js-style-guide/javascript";',
-    'import playwright from "@scope/js-style-guide/playwright";',
+    'import javascript from "@waismeeran/ts-code-standards/javascript";',
+    'import playwright from "@waismeeran/ts-code-standards/playwright";',
     "export default defineConfig(javascript, playwright);",
     "",
   ].join("\n"));
@@ -381,17 +363,17 @@ try {
     include: ["src/**/*.ts", "e2e/**/*.ts"],
   }, null, 2));
   await writeFile(join(typescriptConsumer, "public-exports.ts"), [
-    'import type { Preset } from "@scope/js-style-guide";',
-    'import javascript from "@scope/js-style-guide/javascript";',
-    'import typescript from "@scope/js-style-guide/typescript";',
-    'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";',
-    'import browser from "@scope/js-style-guide/browser";',
-    'import node from "@scope/js-style-guide/node";',
-    'import imports from "@scope/js-style-guide/imports";',
-    'import react from "@scope/js-style-guide/react";',
-    'import next from "@scope/js-style-guide/next";',
-    'import angular from "@scope/js-style-guide/angular";',
-    'import playwright from "@scope/js-style-guide/playwright";',
+    'import type { Preset } from "@waismeeran/ts-code-standards";',
+    'import javascript from "@waismeeran/ts-code-standards/javascript";',
+    'import typescript from "@waismeeran/ts-code-standards/typescript";',
+    'import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";',
+    'import browser from "@waismeeran/ts-code-standards/browser";',
+    'import node from "@waismeeran/ts-code-standards/node";',
+    'import imports from "@waismeeran/ts-code-standards/imports";',
+    'import react from "@waismeeran/ts-code-standards/react";',
+    'import next from "@waismeeran/ts-code-standards/next";',
+    'import angular from "@waismeeran/ts-code-standards/angular";',
+    'import playwright from "@waismeeran/ts-code-standards/playwright";',
     "const publicPresets: Preset[] = [javascript, typescript, typescriptTypeChecked, browser, node, imports, react, next, angular, playwright];",
     "export default publicPresets;",
     "",
@@ -399,10 +381,10 @@ try {
   run("node", ["node_modules/typescript/bin/tsc", "--noEmit", "--strict", "--skipLibCheck", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "public-exports.ts"], typescriptConsumer);
   await writeFile(join(typescriptConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
-    'import browser from "@scope/js-style-guide/browser";',
-    'import imports from "@scope/js-style-guide/imports";',
-    'import playwright from "@scope/js-style-guide/playwright";',
-    'import typescript from "@scope/js-style-guide/typescript";',
+    'import browser from "@waismeeran/ts-code-standards/browser";',
+    'import imports from "@waismeeran/ts-code-standards/imports";',
+    'import playwright from "@waismeeran/ts-code-standards/playwright";',
+    'import typescript from "@waismeeran/ts-code-standards/typescript";',
     "export default defineConfig(typescript, browser, imports, playwright);",
     "",
   ].join("\n"));
@@ -475,10 +457,10 @@ try {
   }, null, 2));
   await writeFile(join(typedConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
-    'import imports from "@scope/js-style-guide/imports";',
-    'import node from "@scope/js-style-guide/node";',
-    'import playwright from "@scope/js-style-guide/playwright";',
-    'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";',
+    'import imports from "@waismeeran/ts-code-standards/imports";',
+    'import node from "@waismeeran/ts-code-standards/node";',
+    'import playwright from "@waismeeran/ts-code-standards/playwright";',
+    'import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";',
     "export default defineConfig(typescriptTypeChecked, node, imports, playwright);",
     "",
   ].join("\n"));
@@ -533,7 +515,7 @@ try {
       const missingNextPeer = spawnSync("node", [
         "--input-type=module",
         "-e",
-        'await import("@scope/js-style-guide/next");',
+        'await import("@waismeeran/ts-code-standards/next");',
       ], { cwd: directory, encoding: "utf8" });
       assert.notEqual(missingNextPeer.status, 0, "the Next subpath should require its optional plugin peer");
       assert.match(missingNextPeer.stderr, /@next\/eslint-plugin-next/);
@@ -541,11 +523,11 @@ try {
     if (mode !== "javascript") await mkdir(join(directory, "src"));
 
     const presetImports = {
-      javascript: 'import javascript from "@scope/js-style-guide/javascript";',
-      typescript: 'import typescript from "@scope/js-style-guide/typescript";',
-      "typescript-type-checked": 'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";',
-      "typescript-browser": 'import typescript from "@scope/js-style-guide/typescript";\nimport browser from "@scope/js-style-guide/browser";',
-      "typescript-imports": 'import typescript from "@scope/js-style-guide/typescript";\nimport imports from "@scope/js-style-guide/imports";',
+      javascript: 'import javascript from "@waismeeran/ts-code-standards/javascript";',
+      typescript: 'import typescript from "@waismeeran/ts-code-standards/typescript";',
+      "typescript-type-checked": 'import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";',
+      "typescript-browser": 'import typescript from "@waismeeran/ts-code-standards/typescript";\nimport browser from "@waismeeran/ts-code-standards/browser";',
+      "typescript-imports": 'import typescript from "@waismeeran/ts-code-standards/typescript";\nimport imports from "@waismeeran/ts-code-standards/imports";',
     }[mode];
     const composedPresets = {
       javascript: "javascript, react",
@@ -557,7 +539,7 @@ try {
     await writeFile(join(directory, "eslint.config.js"), [
       'import { defineConfig } from "eslint/config";',
       presetImports,
-      'import react from "@scope/js-style-guide/react";',
+      'import react from "@waismeeran/ts-code-standards/react";',
       `export default defineConfig(${composedPresets});`,
       "",
     ].join("\n"));
@@ -671,16 +653,16 @@ try {
     }
 
     const languageImport = mode === "javascript"
-      ? 'import javascript from "@scope/js-style-guide/javascript";'
+      ? 'import javascript from "@waismeeran/ts-code-standards/javascript";'
       : mode === "typed"
-        ? 'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";'
-        : 'import typescript from "@scope/js-style-guide/typescript";';
+        ? 'import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";'
+        : 'import typescript from "@waismeeran/ts-code-standards/typescript";';
     const overlayImport = mode === "imports"
-      ? 'import imports from "@scope/js-style-guide/imports";'
+      ? 'import imports from "@waismeeran/ts-code-standards/imports";'
       : mode === "browser"
-        ? 'import browser from "@scope/js-style-guide/browser";'
+        ? 'import browser from "@waismeeran/ts-code-standards/browser";'
         : "";
-    const playwrightImport = 'import playwright from "@scope/js-style-guide/playwright";';
+    const playwrightImport = 'import playwright from "@waismeeran/ts-code-standards/playwright";';
     const languagePreset = mode === "javascript" ? "javascript" : mode === "typed" ? "typescriptTypeChecked" : "typescript";
     const overlays = mode === "imports"
       ? `${languagePreset}, next, imports, playwright`
@@ -690,7 +672,7 @@ try {
     await writeFile(join(directory, "eslint.config.js"), [
       'import { defineConfig } from "eslint/config";',
       languageImport,
-      'import next from "@scope/js-style-guide/next";',
+      'import next from "@waismeeran/ts-code-standards/next";',
       overlayImport,
       playwrightImport,
       `export default defineConfig(${overlays});`,
@@ -746,21 +728,21 @@ try {
     await writeConsumer(directory, name, tarballPath, "5.9.3", false, dependencies);
     await mkdir(join(directory, "src"), { recursive: true });
     const languageImport = mode === "typed"
-      ? 'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";'
+      ? 'import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";'
       : "";
     const overlayImport = mode === "browser"
-      ? 'import browser from "@scope/js-style-guide/browser";'
+      ? 'import browser from "@waismeeran/ts-code-standards/browser";'
       : mode === "imports"
-        ? 'import imports from "@scope/js-style-guide/imports";'
+        ? 'import imports from "@waismeeran/ts-code-standards/imports";'
         : "";
     const overlays = mode === "browser" ? ", browser" : mode === "imports" ? ", imports" : "";
     const languagePreset = mode === "typed" ? "angular, typescriptTypeChecked, playwright" : `angular${overlays}, playwright`;
     await writeFile(join(directory, "eslint.config.js"), [
       'import { defineConfig } from "eslint/config";',
-      'import angular from "@scope/js-style-guide/angular";',
+      'import angular from "@waismeeran/ts-code-standards/angular";',
       languageImport,
       overlayImport,
-      'import playwright from "@scope/js-style-guide/playwright";',
+      'import playwright from "@waismeeran/ts-code-standards/playwright";',
       mode === "imports"
         ? 'export default defineConfig(angular, playwright, { files: ["src/imports.ts"], extends: [imports] });'
         : `export default defineConfig(${languagePreset});`,

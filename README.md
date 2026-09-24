@@ -1,10 +1,10 @@
-# @scope/js-style-guide
+# TS Code Standards
 
-A public JavaScript/TypeScript ESLint Flat Config package foundation. The current package name, `@scope/js-style-guide`, is provisional and will be finalized before publication.
+JavaScript and TypeScript code standards for modern web applications, delivered as a modular ESLint Flat Config package.
 
 ## Status
 
-Phases 0–7 are accepted. Phase 8 public package hardening and Phase 9A release preparation are approved. External release execution (Phase 9B) is not authorized and awaits owner identity decisions. The package remains unpublished and its name is provisional.
+The package is prepared for its initial release but is not yet available on npm. Check the package registry before using the installation examples below.
 
 ### Available now
 
@@ -23,24 +23,24 @@ Phases 0–7 are accepted. Phase 8 public package hardening and Phase 9A release
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
 - CI configuration for Node 20.19.0, 22, and 24.
-- A local release-readiness check and read-only manual release-verification workflow; no publisher is enabled.
+- A local release-readiness check, read-only manual verifier, and prepared GitHub Release/OIDC publisher; canonical repository metadata is set.
 - MIT license.
 
 ### Planned
 
-The dedicated Vitest adapter is deferred because the current stable official lint plugin requires Node >=22; the package intentionally retains Node >=20.19.0. This does not prevent Vitest projects from using the package's other applicable presets. Playwright is implemented independently. See the [Playwright preset guide](./docs/presets/playwright.md) and [compatibility matrix](./docs/compatibility.md).
+The dedicated Vitest adapter is deferred because the current stable official lint plugin requires Node >=22; the package intentionally retains Node >=20.19.0. This does not prevent Vitest projects from using the package's other applicable presets. Playwright is implemented independently.
 
 ## Installation and compatibility
 
-This package is not published yet, so the provisional `@scope/js-style-guide` identifier in examples cannot currently be installed from npm. The final package name and registry installation command are release decisions; no scope or name is implied by this placeholder.
+This package is not published yet, so `@waismeeran/ts-code-standards` cannot currently be installed from npm. Check the npm registry before using the installation example.
 
-ESLint `>=10 <11` is a required peer. Install only the optional lint tooling for the subpaths you use: TypeScript presets require TypeScript; `/react` requires `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y-x`; `/next` requires `@next/eslint-plugin-next`; `/angular` requires its three `@angular-eslint` peers; and `/playwright` requires `eslint-plugin-playwright`. Browser, Node, and imports are overlays and do not require framework peers. See the [compatibility and peer matrix](./docs/compatibility.md) before selecting presets. React, Next, Angular, and Playwright runtime/test-runner packages are not required by these lint presets.
+ESLint `>=10 <11` is a required peer. Install only the optional lint tooling for the subpaths you use: TypeScript presets require TypeScript; `/react` requires `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y-x`; `/next` requires `@next/eslint-plugin-next`; `/angular` requires its three `@angular-eslint` peers; and `/playwright` requires `eslint-plugin-playwright`. Browser, Node, and imports are overlays and do not require framework peers. React, Next, Angular, and Playwright runtime/test-runner packages are not required by these lint presets.
 
-Once the final package name is approved and the package is published, the minimal JavaScript setup will install ESLint and the package, then use the following config (replace the provisional specifier with the published package name):
+After the package is published, install ESLint and `@waismeeran/ts-code-standards`, then use the following config:
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import javascript from "@scope/js-style-guide/javascript";
+import javascript from "@waismeeran/ts-code-standards/javascript";
 
 export default defineConfig(javascript);
 ~~~
@@ -51,7 +51,7 @@ Consumers will compose preset arrays as separate arguments to ESLint's defineCon
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import { javascript } from "@scope/js-style-guide";
+import { javascript } from "@waismeeran/ts-code-standards";
 
 export default defineConfig(javascript);
 ~~~
@@ -62,8 +62,8 @@ Environment, imports, and framework overlays are independent subpaths. For examp
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import javascript from "@scope/js-style-guide/javascript";
-import react from "@scope/js-style-guide/react";
+import javascript from "@waismeeran/ts-code-standards/javascript";
+import react from "@waismeeran/ts-code-standards/react";
 
 export default defineConfig(javascript, react);
 ~~~
@@ -72,8 +72,8 @@ Browser globals are selected separately:
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import { javascript } from "@scope/js-style-guide";
-import browser from "@scope/js-style-guide/browser";
+import { javascript } from "@waismeeran/ts-code-standards";
+import browser from "@waismeeran/ts-code-standards/browser";
 
 export default defineConfig(javascript, browser);
 ~~~
@@ -82,8 +82,8 @@ The Next.js preset includes React behavior; do not add `/react` separately. Choo
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import next from "@scope/js-style-guide/next";
-import typescript from "@scope/js-style-guide/typescript";
+import next from "@waismeeran/ts-code-standards/next";
+import typescript from "@waismeeran/ts-code-standards/typescript";
 
 export default defineConfig(typescript, next);
 ~~~
@@ -92,40 +92,37 @@ The Angular preset is standalone and includes the fast TypeScript baseline plus 
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import angular from "@scope/js-style-guide/angular";
+import angular from "@waismeeran/ts-code-standards/angular";
 
 export default defineConfig(angular);
 ~~~
 
-Angular does not imply browser or Node globals. Add environment overlays separately. See the [Angular preset guide](./docs/presets/angular.md) for compatibility, typed composition, and tooling details.
+Angular does not imply browser or Node globals. Add environment overlays separately.
 
 Choose one TypeScript preset, not both. The fast preset does not need a `tsconfig.json`; the type-checked preset uses Project Service and expects linted files to belong to a TypeScript project.
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import imports from "@scope/js-style-guide/imports";
-import node from "@scope/js-style-guide/node";
-import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
+import imports from "@waismeeran/ts-code-standards/imports";
+import node from "@waismeeran/ts-code-standards/node";
+import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";
 
 export default defineConfig(typescriptTypeChecked, node, imports);
 ~~~
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import typescript from "@scope/js-style-guide/typescript";
+import typescript from "@waismeeran/ts-code-standards/typescript";
 
 export default defineConfig(typescript);
 ~~~
 
 ~~~js
 import { defineConfig } from "eslint/config";
-import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";
+import typescriptTypeChecked from "@waismeeran/ts-code-standards/typescript-type-checked";
 
 export default defineConfig(typescriptTypeChecked);
 ~~~
-
-See the [JavaScript preset guide](./docs/presets/javascript.md) and [TypeScript preset guide](./docs/presets/typescript.md) for rule policies and intentional omissions.
-See also the [browser](./docs/presets/browser.md), [Node](./docs/presets/node.md), [imports](./docs/presets/imports.md), [React](./docs/presets/react.md), [Next.js](./docs/presets/next.md), [Angular](./docs/presets/angular.md), and [Playwright](./docs/presets/playwright.md) guides.
 
 ## Development
 
@@ -139,15 +136,7 @@ npm run clean
 
 The repository self-lints TypeScript source, JavaScript scripts, and Node-based tests with language presets plus the Node and imports overlays after building. Generated `dist/` output is excluded. Formatting tooling remains separate, and no eslint-plugin-prettier dependency is used.
 
-## Documentation
-
-- [Compatibility and optional peer matrix](./docs/compatibility.md)
-- [JavaScript preset](./docs/presets/javascript.md) · [TypeScript](./docs/presets/typescript.md) · [Browser](./docs/presets/browser.md) · [Node](./docs/presets/node.md) · [Imports](./docs/presets/imports.md)
-- [React](./docs/presets/react.md) · [Next.js](./docs/presets/next.md) · [Angular](./docs/presets/angular.md) · [Playwright](./docs/presets/playwright.md)
-- [Root export isolation decision](./docs/adr/0007-root-export-isolation.md) · [Vitest deferral decision](./docs/adr/0012-vitest-deferral-node-compatibility.md)
-- [Contributing](./docs/contributing/CONTRIBUTING.md)
-
-The package is licensed under MIT. The package identifier shown here is provisional until publication planning. Repository-only planning, audit, and agent workflow documents are intentionally not included in the package.
+The package is licensed under MIT. Its approved public identity is [GitHub `waismeeran/ts-code-standards`](https://github.com/waismeeran/ts-code-standards) and npm `@waismeeran/ts-code-standards`.
 
 ## Project structure
 
@@ -157,19 +146,12 @@ src/                 TypeScript package source
   presets/           Public language presets and browser/Node/imports/React/Next/Angular/Playwright overlays
 tests/               Package architecture tests
 scripts/             Build cleanup and tarball consumer validation
-docs/adr/             Accepted architecture decision records
-docs/agents/          Workflow guidance and task/handoff templates
-docs/audits/          Historical technical investigations
-docs/contributing/    Contributor guidance
-docs/phases/          Phase evidence and reports
-docs/planning/        Roadmap and implementation planning
-docs/presets/         Preset rationale and usage guidance
 .github/workflows/   Node compatibility CI
 AGENTS.md             Canonical operational guide for agents and contributors
 ~~~
 
-The internal base is not a public package export. Agent workflow docs are repository development materials and are excluded from the npm package.
+The internal base is not a public package export.
 
 ## Contribution guidance
 
-The source repository contains additional maintainer workflow and phase-validation instructions that are not distributed in the npm package. Contributions should follow the repository's current phase authorization and accepted architecture decisions.
+Contributions should preserve the documented preset composition contract, keep optional integrations isolated behind their public subpaths, and pass `npm ci` followed by `npm run check`.

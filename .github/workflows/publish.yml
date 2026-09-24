@@ -1,0 +1,53 @@
+name: Publish npm package
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: npm-publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify and publish public package
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out the released tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Node.js and npm registry
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Require npm trusted-publishing support
+        run: |
+          npm_version="$(npm --version)"
+          node -e 'const [major, minor, patch] = process.argv[1].split(".").map(Number); if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) { console.error(`npm ${process.argv[1]} is too old for trusted publishing; require >=11.5.1`); process.exit(1); }' "$npm_version"
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run canonical quality and package gate
+        run: npm run check
+
+      - name: Verify package identity and release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: npm run release:check -- --tag "$RELEASE_TAG"
+
+      - name: Publish public package with npm trusted publishing
+        run: npm publish --access public

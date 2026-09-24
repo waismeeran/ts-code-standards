@@ -11,7 +11,7 @@ const next: Preset = [
   ...reactCapability,
   {
     ...nextPlugin.configs["core-web-vitals"],
-    name: "@scope/js-style-guide/next/core-web-vitals",
+    name: "@waismeeran/ts-code-standards/next/core-web-vitals",
     files: nextSourceFiles,
   },
 ];

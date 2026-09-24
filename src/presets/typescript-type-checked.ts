@@ -9,7 +9,7 @@ const typescriptTypeChecked: Preset = [
   ...typescriptPreset,
   ...recommendedTypeCheckedOnly,
   {
-    name: "@scope/js-style-guide/typescript-type-checked/project-service",
+    name: "@waismeeran/ts-code-standards/typescript-type-checked/project-service",
     files: typescriptFiles,
     languageOptions: {
       parserOptions: {
