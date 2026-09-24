@@ -4,7 +4,7 @@ A public JavaScript/TypeScript ESLint Flat Config package foundation. The curren
 
 ## Status
 
-Phases 0–6 are accepted. Phase 7 — Playwright is implemented with the Vitest adapter deferred and is awaiting lead review. The package remains unpublished and its name is provisional.
+Phases 0–7 are accepted. The dedicated Vitest adapter is deferred for Node compatibility. Phase 8 public package hardening is implemented and awaiting lead review; Phase 9 is not yet authorized. The package remains unpublished and its name is provisional.
 
 ### Available now
 
@@ -27,7 +27,22 @@ Phases 0–6 are accepted. Phase 7 — Playwright is implemented with the Vitest
 
 ### Planned
 
-The dedicated Vitest adapter is deferred because the current stable official lint plugin requires Node >=22; the package intentionally retains Node >=20.19.0. Playwright is implemented independently. See the [Playwright preset guide](./docs/presets/playwright.md) and [Phase 7 report](./docs/phases/phase-7-testing-report.md).
+The dedicated Vitest adapter is deferred because the current stable official lint plugin requires Node >=22; the package intentionally retains Node >=20.19.0. This does not prevent Vitest projects from using the package's other applicable presets. Playwright is implemented independently. See the [Playwright preset guide](./docs/presets/playwright.md) and [compatibility matrix](./docs/compatibility.md).
+
+## Installation and compatibility
+
+This package is not published yet, so the provisional `@scope/js-style-guide` identifier in examples cannot currently be installed from npm. The final package name and registry installation command are release decisions; no scope or name is implied by this placeholder.
+
+ESLint `>=10 <11` is a required peer. Install only the optional lint tooling for the subpaths you use: TypeScript presets require TypeScript; `/react` requires `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y-x`; `/next` requires `@next/eslint-plugin-next`; `/angular` requires its three `@angular-eslint` peers; and `/playwright` requires `eslint-plugin-playwright`. Browser, Node, and imports are overlays and do not require framework peers. See the [compatibility and peer matrix](./docs/compatibility.md) before selecting presets. React, Next, Angular, and Playwright runtime/test-runner packages are not required by these lint presets.
+
+Once the final package name is approved and the package is published, the minimal JavaScript setup will install ESLint and the package, then use the following config (replace the provisional specifier with the published package name):
+
+~~~js
+import { defineConfig } from "eslint/config";
+import javascript from "@scope/js-style-guide/javascript";
+
+export default defineConfig(javascript);
+~~~
 
 ## Composition contract
 
@@ -125,16 +140,13 @@ The repository self-lints TypeScript source, JavaScript scripts, and Node-based 
 
 ## Documentation
 
-- [Agent instructions](./AGENTS.md)
-- [Architecture decisions](./docs/adr/)
-- [JavaScript preset rationale](./docs/presets/javascript.md)
-- [TypeScript preset guidance](./docs/presets/typescript.md)
-- [Implementation plan](./docs/planning/implementation-plan.md)
-- [Phase reports](./docs/phases/)
-- [Technical audits](./docs/audits/)
+- [Compatibility and optional peer matrix](./docs/compatibility.md)
+- [JavaScript preset](./docs/presets/javascript.md) · [TypeScript](./docs/presets/typescript.md) · [Browser](./docs/presets/browser.md) · [Node](./docs/presets/node.md) · [Imports](./docs/presets/imports.md)
+- [React](./docs/presets/react.md) · [Next.js](./docs/presets/next.md) · [Angular](./docs/presets/angular.md) · [Playwright](./docs/presets/playwright.md)
+- [Root export isolation decision](./docs/adr/0007-root-export-isolation.md) · [Vitest deferral decision](./docs/adr/0012-vitest-deferral-node-compatibility.md)
 - [Contributing](./docs/contributing/CONTRIBUTING.md)
 
-The package is licensed under MIT. The package identifier shown here is provisional until publication planning.
+The package is licensed under MIT. The package identifier shown here is provisional until publication planning. Repository-only planning, audit, and agent workflow documents are intentionally not included in the package.
 
 ## Project structure
 
@@ -157,6 +169,6 @@ AGENTS.md             Canonical operational guide for agents and contributors
 
 The internal base is not a public package export. Agent workflow docs are repository development materials and are excluded from the npm package.
 
-## AI-assisted development
+## Contribution guidance
 
-This repository supports human and AI-assisted contributions. [AGENTS.md](AGENTS.md) is the sole authoritative repository instruction source; [docs/agents/workflow.md](docs/agents/workflow.md) is supplemental guidance that cannot override it. Accepted decisions live in `docs/adr/`, and each implementation phase has explicit scope. Contributors use the deterministic commands above and may delegate bounded research or review through the specialist workflow. Human review remains authoritative.
+The source repository contains additional maintainer workflow and phase-validation instructions that are not distributed in the npm package. Contributions should follow the repository's current phase authorization and accepted architecture decisions.

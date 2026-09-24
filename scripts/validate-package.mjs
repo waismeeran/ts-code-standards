@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, posix, resolve } from "node:path";
 
 const root = resolve(".");
 const packDirectory = await mkdtemp(join(tmpdir(), "js-style-guide-pack-"));
@@ -27,7 +27,7 @@ const consumers = await Promise.all([
   mkdtemp(join(tmpdir(), "js-style-guide-angular-typed-consumer-")),
 ]);
 
-function run(command, args, cwd) {
+function run(command, args, cwd, { rejectPeerWarnings = false } = {}) {
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
@@ -40,6 +40,10 @@ function run(command, args, cwd) {
       result.stdout,
       result.stderr,
     ].join("\n"));
+  }
+
+  if (rejectPeerWarnings) {
+    assert.doesNotMatch(result.stderr, /ERESOLVE|unmet peer dependency|peer dep conflict/i, `${command} ${args.join(" ")}: no misleading peer-resolution warning`);
   }
 
   return result.stdout;
@@ -62,7 +66,7 @@ async function writeConsumer(directory, name, tarballPath, typescriptVersion, om
 
   const installArgs = ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"];
   if (omitPeers) installArgs.push("--omit=peer");
-  run("npm", installArgs, directory);
+  run("npm", installArgs, directory, { rejectPeerWarnings: true });
 }
 
 try {
@@ -72,7 +76,7 @@ try {
     ? ["pack", "--json", "--ignore-scripts", "--pack-destination", packDirectory]
     : ["pack", "--pack-destination", packDirectory];
 
-  run(packager, packArgs, root);
+  const packOutput = run(packager, packArgs, root);
 
   const packedFiles = await readdir(packDirectory);
   const tarball = packedFiles.find((name) => name.endsWith(".tgz"));
@@ -82,6 +86,25 @@ try {
   const archiveListing = execFileSync("tar", ["-tzf", tarballPath], {
     encoding: "utf8",
   }).split("\n").filter(Boolean);
+
+  const packageMetadata = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  const archiveFiles = new Set(archiveListing.filter((entry) => !entry.endsWith("/")));
+  for (const [specifier, target] of Object.entries(packageMetadata.exports)) {
+    if (typeof target === "string") {
+      assert.ok(archiveFiles.has(`package/${target.replace(/^\.\//, "")}`), `${specifier}: package export target exists in tarball`);
+      continue;
+    }
+
+    assert.deepEqual(Object.keys(target).sort(), ["import", "types"], `${specifier}: export exposes only ESM and type conditions`);
+    assert.match(target.import, /^\.\/dist\/.*\.js$/, `${specifier}: ESM target uses emitted .js`);
+    assert.match(target.types, /^\.\/dist\/.*\.d\.ts$/, `${specifier}: declaration target uses emitted .d.ts`);
+    assert.ok(archiveFiles.has(`package/${target.import.replace(/^\.\//, "")}`), `${specifier}: ESM target exists in tarball`);
+    assert.ok(archiveFiles.has(`package/${target.types.replace(/^\.\//, "")}`), `${specifier}: declaration target exists in tarball`);
+  }
+  assert.ok(!("./vitest" in packageMetadata.exports), "Vitest remains absent from the public exports");
+  assert.equal(packageMetadata.type, "module", "package remains ESM-only");
+
+  const tarballMetadata = useNpm ? JSON.parse(packOutput)[0] : undefined;
 
   assert.ok(archiveListing.includes("package/dist/index.js"));
   assert.ok(archiveListing.includes("package/dist/index.d.ts"));
@@ -121,6 +144,27 @@ try {
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/phases/")));
   assert.ok(!archiveListing.some((entry) => entry.startsWith("package/docs/audits/")));
   assert.ok(!archiveListing.some((entry) => entry.includes("node_modules")));
+  assert.ok(!archiveListing.some((entry) => /(^|\/)(\.DS_Store|Thumbs\.db|\.npmrc|\.env(?:\.|$))/.test(entry)));
+  assert.ok(!archiveListing.some((entry) => /\.(?:map|tsbuildinfo)$/.test(entry)));
+  for (const markdownFile of archiveFiles) {
+    if (!markdownFile.endsWith(".md")) continue;
+    const contents = execFileSync("tar", ["-xOf", tarballPath, markdownFile], { encoding: "utf8" });
+    for (const [, rawTarget] of contents.matchAll(/\[[^\]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)/g)) {
+      if (/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(rawTarget)) continue;
+      const targetPath = decodeURIComponent(rawTarget.split("#", 1)[0].split("?", 1)[0]);
+      if (!targetPath) continue;
+      const resolvedTarget = posix.normalize(posix.join(posix.dirname(markdownFile), targetPath));
+      const existsAsFile = archiveFiles.has(resolvedTarget);
+      const existsAsDirectory = [...archiveFiles].some((entry) => entry.startsWith(`${resolvedTarget.replace(/\/$/, "")}/`));
+      assert.ok(existsAsFile || existsAsDirectory, `${markdownFile}: relative link ${rawTarget} resolves inside the package`);
+    }
+  }
+  if (tarballMetadata) {
+    assert.ok(tarballMetadata.size > 0, "npm pack reports a non-empty compressed artifact");
+    assert.ok(tarballMetadata.unpackedSize > 0, "npm pack reports a non-empty unpacked artifact");
+    assert.equal(tarballMetadata.files.length, archiveFiles.size, "npm pack file count matches the inspected archive");
+    console.log(`Tarball metrics: ${tarballMetadata.files.length} files, ${tarballMetadata.size} bytes packed, ${tarballMetadata.unpackedSize} bytes unpacked.`);
+  }
 
   const [
     javascriptConsumer,
@@ -204,6 +248,25 @@ try {
   ], { cwd: javascriptConsumer, encoding: "utf8" });
   assert.equal(playwrightToolingAbsent.status, 0, "safe root consumer should not install Playwright tooling");
 
+  const privateExports = [
+    "@scope/js-style-guide/vitest",
+    "@scope/js-style-guide/internal/react",
+    "@scope/js-style-guide/internal/base",
+    "@scope/js-style-guide/dist/internal/react",
+    "@scope/js-style-guide/src/presets/react",
+  ];
+  const privateExportCheck = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    `for (const specifier of ${JSON.stringify(privateExports)}) await import(specifier).then(() => process.exit(1), (error) => { if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error; });`,
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.equal(privateExportCheck.status, 0, "Vitest and private implementation paths are not package exports");
+  const commonJsCheck = spawnSync("node", [
+    "-e",
+    'try { require("@scope/js-style-guide"); process.exit(1); } catch (error) { if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error; }',
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.equal(commonJsCheck.status, 0, "CommonJS consumers receive the ordinary unsupported-export error");
+
   const missingTypeScriptPeer = spawnSync("node", [
     "--input-type=module",
     "-e",
@@ -226,6 +289,20 @@ try {
   });
   assert.notEqual(missingPlaywrightPeer.status, 0, "the Playwright subpath should require its optional peer");
   assert.match(missingPlaywrightPeer.stderr, /Cannot find package ['"]eslint-plugin-playwright['"]/);
+  const missingReactPeers = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("@scope/js-style-guide/react");',
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.notEqual(missingReactPeers.status, 0, "the React subpath should require its optional lint tooling");
+  assert.match(missingReactPeers.stderr, /eslint-plugin-react-hooks|eslint-plugin-jsx-a11y-x/);
+  const missingAngularPeer = spawnSync("node", [
+    "--input-type=module",
+    "-e",
+    'await import("@scope/js-style-guide/angular");',
+  ], { cwd: javascriptConsumer, encoding: "utf8" });
+  assert.notEqual(missingAngularPeer.status, 0, "the Angular subpath should require its optional lint tooling");
+  assert.match(missingAngularPeer.stderr, /@angular-eslint\/eslint-plugin|@angular-eslint\/eslint-plugin-template|@angular-eslint\/template-parser/);
 
   run("node", ["node_modules/eslint/bin/eslint.js", "client.js", "server.mjs", "server.cjs", "imports.js"], javascriptConsumer);
   const invalidBrowserEnvironment = spawnSync("node", ["node_modules/eslint/bin/eslint.js", "client-invalid.js"], {
@@ -303,6 +380,23 @@ try {
     },
     include: ["src/**/*.ts", "e2e/**/*.ts"],
   }, null, 2));
+  await writeFile(join(typescriptConsumer, "public-exports.ts"), [
+    'import type { Preset } from "@scope/js-style-guide";',
+    'import javascript from "@scope/js-style-guide/javascript";',
+    'import typescript from "@scope/js-style-guide/typescript";',
+    'import typescriptTypeChecked from "@scope/js-style-guide/typescript-type-checked";',
+    'import browser from "@scope/js-style-guide/browser";',
+    'import node from "@scope/js-style-guide/node";',
+    'import imports from "@scope/js-style-guide/imports";',
+    'import react from "@scope/js-style-guide/react";',
+    'import next from "@scope/js-style-guide/next";',
+    'import angular from "@scope/js-style-guide/angular";',
+    'import playwright from "@scope/js-style-guide/playwright";',
+    "const publicPresets: Preset[] = [javascript, typescript, typescriptTypeChecked, browser, node, imports, react, next, angular, playwright];",
+    "export default publicPresets;",
+    "",
+  ].join("\n"));
+  run("node", ["node_modules/typescript/bin/tsc", "--noEmit", "--strict", "--skipLibCheck", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "public-exports.ts"], typescriptConsumer);
   await writeFile(join(typescriptConsumer, "eslint.config.js"), [
     'import { defineConfig } from "eslint/config";',
     'import browser from "@scope/js-style-guide/browser";',
@@ -435,6 +529,15 @@ try {
     const dependencies = { ...reactTooling };
     if (mode === "typescript-type-checked") dependencies["@types/node"] = "26.6.2";
     await writeConsumer(directory, name, tarballPath, tsVersion, false, dependencies);
+    if (mode === "javascript") {
+      const missingNextPeer = spawnSync("node", [
+        "--input-type=module",
+        "-e",
+        'await import("@scope/js-style-guide/next");',
+      ], { cwd: directory, encoding: "utf8" });
+      assert.notEqual(missingNextPeer.status, 0, "the Next subpath should require its optional plugin peer");
+      assert.match(missingNextPeer.stderr, /@next\/eslint-plugin-next/);
+    }
     if (mode !== "javascript") await mkdir(join(directory, "src"));
 
     const presetImports = {

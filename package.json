@@ -3,7 +3,6 @@
   "version": "0.0.0-foundation",
   "description": "A modular, ESM-first Flat Config foundation for JavaScript and TypeScript projects.",
   "type": "module",
-  "private": false,
   "license": "MIT",
   "engines": {
     "node": ">=20.19.0"
@@ -20,6 +19,7 @@
     "docs/presets/next.md",
     "docs/presets/angular.md",
     "docs/presets/playwright.md",
+    "docs/compatibility.md",
     "README.md",
     "docs/contributing/CONTRIBUTING.md",
     "LICENSE"
@@ -123,6 +123,7 @@
     "clean": "node scripts/clean.mjs",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run clean && npm run build",
     "lint": "node scripts/lint-project.mjs",
     "test": "node --test",
     "test:package": "node scripts/validate-package.mjs",

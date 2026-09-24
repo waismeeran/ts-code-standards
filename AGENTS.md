@@ -13,9 +13,10 @@ The package targets public open-source quality through explicit APIs, compatibil
 Update this section when a phase is formally accepted or a new phase is authorized.
 
 - Completed: Phase 0A compatibility probes; Phase 0B repository foundation; Phase 0B.1 Git and instruction governance; Phase 0B.2 documentation consolidation and first-commit preparation; Phases 1–6 (JavaScript, TypeScript, browser/Node/imports, React, Next.js, Angular).
-- Implemented and awaiting lead review: Phase 7 — Playwright; dedicated Vitest adapter deferred for Node compatibility.
-- Current authorization: Phase 7 implementation is complete and awaiting lead review. Do not begin Phase 8 until Phase 7 is accepted and Phase 8 is explicitly authorized.
-- Next planned phase: Phase 8 — Public package hardening (not authorized).
+- Completed and accepted: Phase 7 — Playwright; dedicated Vitest adapter deferred for Node compatibility.
+- Implemented and awaiting lead review: Phase 8 — Public package hardening.
+- Current authorization: Phase 8 is complete and ready for lead review. Do not begin Phase 9 or Phase 10 until explicitly authorized.
+- Next planned phase: Phase 9 — CI and public release (not authorized).
 - Implemented: internal base and React composition boundaries; functional JavaScript, fast TypeScript, and type-checked TypeScript presets; browser and Node environment overlays; optional imports, React, Next.js, Angular, and Playwright presets; ESM package exports; build/test/package infrastructure.
 - Planned/deferred: dedicated Vitest ESLint adapter (current official plugin requires Node >=22, while this package supports Node >=20.19); DDD/architecture integrations.
 
@@ -189,6 +190,6 @@ Use ADRs as the only decision-record system. Propose an ADR for public API, depe
 
 ## Agent onboarding
 
-A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 7 — Playwright is implemented with the dedicated Vitest adapter deferred and is awaiting lead review; Phase 8 — Public package hardening is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
+A new contributor given “implement the next approved phase” should first check the Current status above and the active user/lead instruction. Phase 8 — Public package hardening is implemented and awaiting lead review; Phase 9 — CI and public release is not authorized. Read the phase-specific brief, relevant ADRs, and affected code before proposing changes. Ask for lead review if phase authorization, ADR conflict, or a compatibility assumption is unresolved.
 
 For deeper delegation examples and task templates, see `docs/agents/workflow.md`. It supplements AGENTS.md and cannot override it.
