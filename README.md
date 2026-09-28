@@ -4,7 +4,11 @@ JavaScript and TypeScript code standards for modern web applications, delivered 
 
 ## Status
 
-The package is prepared for its initial release but is not yet available on npm. Check the package registry before using the installation examples below.
+The package is published publicly on npm as [`@waismeeran/ts-code-standards`](https://www.npmjs.com/package/@waismeeran/ts-code-standards). Install the latest release with:
+
+~~~sh
+npm install --save-dev @waismeeran/ts-code-standards
+~~~
 
 ### Available now
 
@@ -23,7 +27,7 @@ The package is prepared for its initial release but is not yet available on npm.
 - An internal, environment-neutral base composition boundary.
 - Build, typecheck, test, tarball, and clean-consumer validation scripts.
 - CI configuration for Node 20.19.0, 22, and 24.
-- A local release-readiness check, read-only manual verifier, and prepared GitHub Release/OIDC publisher; canonical repository metadata is set.
+- A local release-readiness check, read-only manual verifier, and GitHub Actions release publisher using npm Trusted Publishing/OIDC.
 - MIT license.
 
 ### Planned
@@ -32,7 +36,11 @@ The dedicated Vitest adapter is deferred because the current stable official lin
 
 ## Installation and compatibility
 
-This package is not published yet, so `@waismeeran/ts-code-standards` cannot currently be installed from npm. Check the npm registry before using the installation example.
+Install ESLint and the package from npm:
+
+~~~sh
+npm install --save-dev 'eslint@>=10.0.0 <11.0.0' '@waismeeran/ts-code-standards'
+~~~
 
 ESLint `>=10 <11` is a required peer. The integrations below are optional peers at the package level, so consumers who do not import a subpath do not need its tooling. Install the listed peers when using that subpath; when combining integrations, install the union of their peers.
 
@@ -48,7 +56,7 @@ ESLint `>=10 <11` is a required peer. The integrations below are optional peers 
 
 The peers listed above are required when importing their corresponding subpath even though they are marked optional in `package.json`. The package does not require React, Next.js, Angular, or Playwright runtime/test-runner packages just to load these lint presets. `/next` uses `@next/eslint-plugin-next` directly; it does not require `eslint-config-next`.
 
-After the package is published, install ESLint and `@waismeeran/ts-code-standards`, then use the following config:
+With ESLint and the package installed, use the following config:
 
 ~~~js
 import { defineConfig } from "eslint/config";

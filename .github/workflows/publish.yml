@@ -49,9 +49,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: npm run release:check -- --tag "$RELEASE_TAG"
 
-      # Temporary first-publication bootstrap: remove NPM_TOKEN after npm
-      # Trusted Publishing is configured for this exact workflow.
-      - name: Bootstrap first public npm publication with provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public --ignore-scripts
+      # npm Trusted Publishing uses this GitHub Actions OIDC identity and
+      # automatically generates provenance for public packages.
+      - name: Publish public package with npm Trusted Publishing
+        run: npm publish --access public --ignore-scripts
