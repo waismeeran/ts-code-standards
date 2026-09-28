@@ -34,7 +34,19 @@ The dedicated Vitest adapter is deferred because the current stable official lin
 
 This package is not published yet, so `@waismeeran/ts-code-standards` cannot currently be installed from npm. Check the npm registry before using the installation example.
 
-ESLint `>=10 <11` is a required peer. Install only the optional lint tooling for the subpaths you use: TypeScript presets require TypeScript; `/react` requires `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y-x`; `/next` requires `@next/eslint-plugin-next`; `/angular` requires its three `@angular-eslint` peers; and `/playwright` requires `eslint-plugin-playwright`. Browser, Node, and imports are overlays and do not require framework peers. React, Next, Angular, and Playwright runtime/test-runner packages are not required by these lint presets.
+ESLint `>=10 <11` is a required peer. The integrations below are optional peers at the package level, so consumers who do not import a subpath do not need its tooling. Install the listed peers when using that subpath; when combining integrations, install the union of their peers.
+
+| Subpath | Additional packages required for this subpath | Composition |
+|---|---|---|
+| `/typescript`, `/typescript-type-checked` | `typescript@>=4.8.4 <6.1.0` | Use exactly one TypeScript preset. The type-checked preset also requires linted files to belong to a TypeScript project. |
+| `/imports` | None beyond the language preset's requirements; the import resolver is included with this package. | Add as an overlay to the language preset(s) you use. |
+| `/react` | `eslint-plugin-react-hooks@^7.1.1`, `eslint-plugin-jsx-a11y-x@^0.2.0` | Add to exactly one JavaScript or TypeScript language preset. |
+| `/next` | `@next/eslint-plugin-next@^16.3.6`, `eslint-plugin-react-hooks@^7.1.1`, `eslint-plugin-jsx-a11y-x@^0.2.0` | Add to exactly one JavaScript or TypeScript language preset. `/next` includes this package's React capability; do not also add `/react`. |
+| `/angular` | `typescript@>=4.8.4 <6.1.0`, `@angular-eslint/eslint-plugin@^21.4.0`, `@angular-eslint/eslint-plugin-template@^21.4.0`, `@angular-eslint/template-parser@^21.4.0` | Standalone preset; it owns Angular's TypeScript and template setup. |
+| `/playwright` | `eslint-plugin-playwright@^2.12.0` | Add as an overlay to the language preset(s) used for E2E tests. |
+| `/browser`, `/node` | None | Add the globals overlay only to files for that environment. |
+
+The peers listed above are required when importing their corresponding subpath even though they are marked optional in `package.json`. The package does not require React, Next.js, Angular, or Playwright runtime/test-runner packages just to load these lint presets. `/next` uses `@next/eslint-plugin-next` directly; it does not require `eslint-config-next`.
 
 After the package is published, install ESLint and `@waismeeran/ts-code-standards`, then use the following config:
 
@@ -78,7 +90,11 @@ import browser from "@waismeeran/ts-code-standards/browser";
 export default defineConfig(javascript, browser);
 ~~~
 
-The Next.js preset includes React behavior; do not add `/react` separately. Choose the language explicitly:
+The Next.js preset includes React Hooks and JSX accessibility behavior; install all of `/next`'s peers listed above. Next.js, React, and React DOM runtime packages are not needed just to load the lint preset. Choose the language explicitly and do not add `/react` separately:
+
+~~~sh
+npm install --save-dev 'eslint@>=10.0.0 <11.0.0' '@waismeeran/ts-code-standards' 'typescript@>=4.8.4 <6.1.0' '@next/eslint-plugin-next@^16.3.6' 'eslint-plugin-react-hooks@^7.1.1' 'eslint-plugin-jsx-a11y-x@^0.2.0'
+~~~
 
 ~~~js
 import { defineConfig } from "eslint/config";
