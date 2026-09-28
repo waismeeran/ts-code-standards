@@ -1,6 +1,6 @@
 {
   "name": "@waismeeran/ts-code-standards",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JavaScript and TypeScript code standards for modern web applications.",
   "type": "module",
   "license": "MIT",
