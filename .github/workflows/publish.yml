@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   publish:
-    name: Verify and publish public package
+    name: Verify and stage public package
     if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -33,10 +33,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
-      - name: Require npm trusted-publishing support
+      - name: Require npm staged-publishing support
         run: |
           npm_version="$(npm --version)"
-          node -e 'const [major, minor, patch] = process.argv[1].split(".").map(Number); if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) { console.error(`npm ${process.argv[1]} is too old for trusted publishing; require >=11.5.1`); process.exit(1); }' "$npm_version"
+          node -e 'const [major, minor] = process.argv[1].split(".").map(Number); if (major < 11 || (major === 11 && minor < 15)) { console.error(`npm ${process.argv[1]} is too old for staged publishing; require >=11.15.0`); process.exit(1); }' "$npm_version"
 
       - name: Install locked dependencies
         run: npm ci
@@ -49,7 +49,23 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: npm run release:check -- --tag "$RELEASE_TAG"
 
-      # npm Trusted Publishing uses this GitHub Actions OIDC identity and
-      # automatically generates provenance for public packages.
-      - name: Publish public package with npm Trusted Publishing
-        run: npm publish --access public --ignore-scripts
+      # npm Trusted Publishing uses this GitHub Actions OIDC identity. Stage
+      # only: a maintainer reviews and approves the version with 2FA.
+      - name: Stage public package with npm Trusted Publishing
+        run: npm stage publish --access public --ignore-scripts
+
+      - name: Summarize staged package for owner review
+        if: success()
+        run: |
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const { name, version } = JSON.parse(
+            require('node:fs').readFileSync('package.json', 'utf8'),
+          );
+          console.log('## npm staged release');
+          console.log('');
+          console.log(`- Package: \`${name}\``);
+          console.log(`- Version: \`${version}\``);
+          console.log('- State: **STAGED — OWNER APPROVAL REQUIRED**');
+          console.log('- Next: review this version in npm Staged Packages and approve it with your 2FA/security key.');
+          console.log('- This staged version reserves the package version. Do not retry staging or attempt direct publish for it; approve the existing stage or explicitly reject it before deciding the next release action.');
+          NODE
